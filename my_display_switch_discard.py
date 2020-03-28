@@ -305,7 +305,7 @@ if __name__ == '__main__':
                       help='Number of switches to process.')
     parser.add_option('-t', '--startswitch', type=int, default=1,
                       help='Start displaying from specified switch.')
-    parser.add_option('-d', '--display', type=str, default='leaves',  # changed from spines to leaves
+    parser.add_option('-d', '--display', type=str, default='leaves',  # changed from spines to leaves ^
                       help='Display spines or leaves.')
     parser.add_option('-m', '--admin', action='store_true',
                       help='Connect to switches using admin account')
@@ -447,7 +447,7 @@ if __name__ == '__main__':
 
     def get_discard(switch_dict, ssh_list):
         # Get switch discard:
-        cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec"'
+        cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec|error packets"'
         #cmd = 'show interface ethernet'
         all_output = run_threaded_cmd(ssh_list, cmd)
         good_output = False
@@ -467,31 +467,46 @@ if __name__ == '__main__':
                             egr_rate = line.split(',')[1]  # splits into list'  60 seconds egress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
                             egr_rate = [int(i) for i in egr_rate.split() if i.isdigit()][0]  # extract digits, stored as long integer
                         if line.startswith('Rx'):
-                            rx_disc = output[i + 1].split(
+                            rx_err = output[i + 1].split(
+                                ' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
+                            rx_err = [x for x in rx_err if x != '']  # creates list removing all spaces'' in list
+                            rx_err = int(rx_err[0])  # cast string of digits to int
+                            ####
+                            rx_disc = output[i + 2].split(
                                 ' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
                             rx_disc = [x for x in rx_disc if x != '']  # creates list removing all spaces'' in list
-                            rx_disc = int(rx_disc[0])  # cast string of digits to int
+                            rx_disc = int(rx_disc[0])  # cast string of digits to int (value of rx discards)
                         if line.startswith('Tx'):
-                            tx_disc = output[i + 1].split(
+                            tx_err = output[i + 1].split(
+                                ' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
+                            tx_err = [x for x in tx_err if x != '']  # creates list removing all spaces'' in list
+                            tx_err = int(tx_err[0])  # cast string of digits to int
+                            ####
+                            tx_disc = output[i + 2].split(
                                 ' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
                             tx_disc = [x for x in tx_disc if x != '']  # creates list removing all spaces'' in list
-                            tx_disc = int(tx_disc[0])  # cast string of digits to int
+                            tx_disc = int(tx_disc[0])  # cast string of digits to int (value of tx discards)
                             switch_dict[sw_name][eth]['rx_discard'] = rx_disc
                             switch_dict[sw_name][eth]['tx_discard'] = tx_disc
                             switch_dict[sw_name][eth]['ingress_rate'] = in_rate
                             switch_dict[sw_name][eth]['egress_rate'] = egr_rate
-                            #             L9    Eth1/1     3128
+                            switch_dict[sw_name][eth]['rx_err'] = rx_err
+                            switch_dict[sw_name][eth]['tx_err'] = tx_err
+                            # switch_dict['L9']['Eth1/1']   3128
+
                 good_output = True
             except (ValueError, IndexError):
                 timeout -= 1
+
         if timeout == 0:
             logger.debug('Rx or tx rates not a number, unexpected output from switch: {}'.format(output[i + 1]))
 
         # Create rates matrix
-        IPython.embed()
+        #IPython.embed()
         cols = len(switch_dict.keys()) + 1  # length or number of elements in dictionary
+
         if opts.display == 'spines':
-            lines = mleaves * 2 + 1
+            lines = mleaves * 2 + 1 #  max 36 leaves, *2 for tx and rx
         else:
             # Find how many ethernet ports there are on the leaves
             port_list = []
@@ -503,8 +518,10 @@ if __name__ == '__main__':
                     except ValueError:
                         port_list.append(port)
             port_list = sorted(port_list, key=natural_keys)
-            lines = len(port_list) * 2 + 1
+            lines = len(port_list) * 6 + 1 # was *2
+
         matrix = [[0 for x in range(cols)] for y in range(lines)]  # creates matrix, a 2-D list of zeros, lines x cols
+
         try:
             sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
             first_sw = int(natural_keys(sorted_swlist[0])[-2])  # extracts 1 from 'L1' and casts to int
@@ -512,11 +529,12 @@ if __name__ == '__main__':
             logger.error('Switch name not end in a number: {}'.format(first_sw))
             close_ssh(ssh_list)
             raise ValueError
-        for switch in switch_dict.keys():
+
+        for switch in switch_dict.keys(): # ['L1','L2','L3'.....]
             idx = sorted_swlist.index(switch) + 1  # gets value of index of 'L1' for example
 
             for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Lx'
-                if opts.display == 'spines':
+                if opts.display == 'spines': # for spines display
                     if data.has_key('remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
                         rem_sw = re.split('(\d+)', data['remote_switch'])
 
@@ -530,44 +548,64 @@ if __name__ == '__main__':
                             raise ValueError
                         try:
                             matrix[0][idx] = switch
-                            matrix[rem_sw_nr * 2 - 1][idx] = data['rx_discard']
-                            matrix[rem_sw_nr * 2][idx] = data['tx_discard']
-                            matrix[rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx'
-                            matrix[rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx'
+                            matrix[rem_sw_nr * 6 - 5][idx] = data['rx_discard']
+                            matrix[rem_sw_nr * 6 - 4][idx] = data['tx_discard']
+                            matrix[rem_sw_nr * 6 - 3][idx] = data['rx_err']
+                            matrix[rem_sw_nr * 6 - 2][idx] = data['tx_err']
+                            matrix[rem_sw_nr * 6 - 1][idx] = data['egress_rate']
+                            matrix[rem_sw_nr * 6][idx] = data['ingress_rate']
+
+                            matrix[rem_sw_nr * 6 - 5][0] = 'L' + str(rem_sw_nr) + ' rx ds'
+                            matrix[rem_sw_nr * 6 - 4][0] = 'L' + str(rem_sw_nr) + ' tx ds'
+                            matrix[rem_sw_nr * 6 - 3][0] = 'L' + str(rem_sw_nr) + ' rx err'
+                            matrix[rem_sw_nr * 6 - 2][0] = 'L' + str(rem_sw_nr) + ' tx err'
+                            matrix[rem_sw_nr * 6 - 1][0] = 'L' + str(rem_sw_nr) + ' out'
+                            matrix[rem_sw_nr * 6][0] = 'L' + str(rem_sw_nr) + ' in'
                         except IndexError:
                             pass
-                else:
+                else: # for leaves display
                     try:
                         port_idx = port_list.index(port) + 1
-                        matrix[0][idx] = switch
-                        matrix[port_idx * 2 - 1][idx] = data['rx_discard']
-                        matrix[port_idx * 2][idx] = data['tx_discard']
-                        matrix[port_idx * 2 - 1][0] = port[3:] + ' rx'
-                        matrix[port_idx * 2][0] = port[3:] + ' tx'
+                        matrix[0][idx] = switch  # switch is a key value in switch_dict eg.L1
+                        matrix[port_idx * 6 - 5][idx] = data['rx_discard']  #
+                        matrix[port_idx * 6 - 4][idx] = data['tx_discard']  #
+                        matrix[port_idx * 6 - 3][idx] = data['rx_err']#
+                        matrix[port_idx * 6 - 2][idx] = data['tx_err']#
+                        matrix[port_idx * 6 - 1][idx] = data['egress_rate']
+                        matrix[port_idx * 6][idx] = data['ingress_rate']
+                        matrix[port_idx * 6 - 5][0] = port[3:] + ' rx ds'  # remove Eth, include 1/17#
+                        matrix[port_idx * 6 - 4][0] = port[3:] + ' tx ds '  # remove Eth, include 1/17#
+                        matrix[port_idx * 6 - 3][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#ingr
+                        matrix[port_idx * 6 - 2][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#egr
+                        matrix[port_idx * 6 - 1][0] = port[3:] + ' out'#remove Eth, include 1/17
+                        matrix[port_idx * 6][0] = port[3:] + ' tx in'
+
                     except IndexError:
                         pass
+        #IPython.embed()
         return matrix
 
 
-    def draw(stdscr, switch_dict, ssh_list):
+    def draw(stdscr, switch_dict, ssh_list): # TODO alter color changing
         from decimal import Decimal
-        def fexp(number):
+
+        def fexp(number): # returns the order of magnitude of number
             (sign, digits, exponent) = Decimal(number).as_tuple()
             return len(digits) + exponent - 1
 
-        def fman(number):
+        def fman(number): # returns number with decimal point after 1st digit
             return Decimal(number).scaleb(-fexp(number)).normalize()
 
         # Clear screMen
         stdscr.clear()
-        lines = curses.LINES
-        cols = curses.COLS
+        lines = curses.LINES # size of console screen HORI
+        cols = curses.COLS # size of console screen VERT
         matrix = get_discard(switch_dict, ssh_list)
 
-        prev_matrix = matrix
+        prev_matrix = matrix # excluded in rates code
         m_rows = len(matrix)
-        m_rows = m_rows + (m_rows / 2)
-        m_cols = len(matrix[0])
+        m_rows = m_rows + (m_rows / 2) # m_rows = no of rows or lines for drawing matrix
+        m_cols = len(matrix[0]) # m_cols = no of columns for drawing matrix
         # find max number size in matrix
         max_num = max([x for x in [j for i in matrix for j in i] if isinstance(x, int)])
         colw = fexp(max_num) + 2
@@ -583,11 +621,13 @@ if __name__ == '__main__':
         curses.init_pair(6, curses.COLOR_GREEN, -1)
         curses.init_pair(7, curses.COLOR_RED, -1)
         curses.init_pair(8, curses.COLOR_RED, -1)
+        curses.init_pair(9, curses.COLOR_RED, curses.COLOR_YELLOW)
+        #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
         row_title = curses.newpad(m_rows, colw)
         disp_wind = curses.newpad(m_rows, m_cols * colw)
         top_cornr = curses.newpad(1, colw)
-        top_cornr.addstr(0, 0, 'Discards', curses.A_BOLD | curses.A_UNDERLINE)
+        top_cornr.addstr(0, 0, 'Rates', curses.A_BOLD | curses.A_UNDERLINE)
         # Data display block upper left-hand corner
         dminrow = 0
         dmincol = 0
@@ -625,45 +665,141 @@ if __name__ == '__main__':
                     thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list))
                     blankc = 0
                     reverse = False
+                    rates_index = False
                     for i, row in enumerate(matrix):
+                    #for i, row in enumerate(n for m, n in enumerate(matrix) if (m + 4) % 6 == 0 or (m + 5) % 6 == 0 or m==0):
+                    #the code above enumerates every 6th element in list ie. [1,2,7,8,13,14,19,20 etc] these are the in out speed rates
+                        if (i)%6 == 0 or (i+1)%6 == 0: # every 6th element in list ie. [5,6,11,12,17,18,23,24... etc] these are the in out speed rates
+                            rates_index = True # set a flag
+                        else:
+                            rates_index = False
                         if i == 0:
                             for j, val in enumerate(row):
-                                if val == 0:
-                                    val = 'N/C'
+                                if val == 0: # this line is excluded from rates code
+                                    val = 'N/C' # this line is excluded from rates code
                                 if j == 0:
                                     pass
                                 else:
                                     col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),
                                                      curses.A_BOLD | curses.A_UNDERLINE)
                         else:
+                        #elif (i+4)%6 == 0 or (i+5)%6 == 0: # prints every 6th row in matrix, which is the rates data
                             for j, val in enumerate(row):
-                                if j == 0:
+                                ###################
+                                if prev_matrix[i][j] != matrix[i][j]:  # check for change in values
+                                    if not ((i) % 6 == 0 or (i + 1) % 6 == 0):  # exclude rate values
+                                        change = True
+                                    else:
+                                        change = False
+                                else:
+                                    change = False
+                                ###################
+                                if j == 0: # for first title row in display
                                     if val == 0:
                                         val = 'N/C'
                                     col_pair = 1
                                     if reverse: col_pair += 1
-                                    row_title.addstr(i + blankc - 1, 0, val,
-                                                     curses.color_pair(col_pair) | curses.A_BOLD)
-                                    if (i - 1) % 2 == 1:
+                                    if rates_index is True:
+                                        row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays L1/1 out, etc.
+                                    if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
                                         row_title.addstr(i + blankc - 1 + 1, 0, ' ')
-                                else:
-                                    if prev_matrix[i][j] != val:
-                                        col_pair = 7
-                                        col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
-                                                         curses.color_pair(
-                                                             col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
-                                        row_title.addstr(i + blankc - 1, 0, matrix[i][0],
-                                                         curses.color_pair(col_pair) | curses.A_BOLD)
-                                    else:
+                                #rates displaying #stdscr.addstr(y_pos, x_pos, "string to be displayed", color_arrangement)
+                                ##############################################################################
+                                else:  # for rows following first title row ^
+                                    width = colw - 2
+                                    if not val: val = 0
+                                    man = fman(val)
+                                    exp = fexp(val)
+                                    if exp < 3 and rates_index is True:
                                         col_pair = 1
-                                    val = '{0:>{1}}'.format(val, colw)
-                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
+                                        if reverse: col_pair += 1
+                                        rate = 'Bs'
+                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+                                    elif exp < 6 and rates_index is True:
+                                        col_pair = 1
+                                        if reverse: col_pair += 1
+                                        rate = 'KB'
+                                        man *= 10 ** (exp - 3)
+                                        man = man.normalize()
+                                        if width - 8 < 0:
+                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                        else:
+                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    elif exp < 9 and rates_index is True:
+                                        col_pair = 3
+                                        if reverse: col_pair += 1
+                                        rate = 'MB'
+                                        man *= 10 ** (exp - 6)
+                                        man = man.normalize()
+                                        if width - 8 < 0:
+                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                        else:
+                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    elif exp < 12 and rates_index is True:
+                                        if man > 4.8:
+                                            col_pair = 7
+                                            if reverse: col_pair += 1
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
+                                                             curses.color_pair(
+                                                                 col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[i][0],
+                                                             curses.color_pair(col_pair) | curses.A_BOLD)
+                                        else:
+                                            col_pair = 5
+                                            if reverse: col_pair += 1
+                                        rate = 'GB'
+                                        man *= 10 ** (exp - 9)
+                                        man = man.normalize()
+                                        val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    #else:
+                                    elif rates_index is True:
+                                        col_pair = 1
+                                        rate = 'Bs'
+                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+
+                                    if change:
+                                        col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
+                                    #if prev_matrix[i][j] != matrix[i][j]: # check for change in values
+                                        #if not ((i) % 6 == 0 or (i+1) % 6 == 0): # exclude rate values
+                                            #col_pair = 9
+                                            #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE) #change column title colour
+                                            #row_title.addstr(i + blankc - 1, j, 'xxx',curses.color_pair(col_pair) | curses.A_BOLD) # testing position
+                                            #row_title.addstr(i + blankc - 1, 0, matrix[i][0],
+                                             #                curses.color_pair(col_pair) | curses.A_BOLD) #change row title colour
+                                    #if (i + 4) % 6 == 0 or (i + 5) % 6 == 0:
+                                    if rates_index is True: #displays rates values only
+                                        if change is True:
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))
+                                        else:
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair)) # testing higlight of rates during a change
+
                                     if (i - 1) % 2 == 1:
                                         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
+                                ##############################################################################
+                                #discard diplaying
+                                ##############################################################################
+                                # else: # for rows following first title row
+                                #     if prev_matrix[i][j] != val: # the discard packets value has changed
+                                #         col_pair = 7
+                                #         col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
+                                #                          curses.color_pair(
+                                #                              col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
+                                #         row_title.addstr(i + blankc - 1, 0, matrix[i][0],
+                                #                          curses.color_pair(col_pair) | curses.A_BOLD)
+                                #     else:
+                                #         col_pair = 1
+                                #     val = '{0:>{1}}'.format(val, colw)
+                                #     disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
+                                #     if (i - 1) % 2 == 1:
+                                #         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
+                                ###############################################################################
                             if (i - 1) % 2 == 1:
+                            #if (i+4)%6 == 0:
+                            #if True:
                                 blankc += 1
+                                #blankc = 0
                                 reverse = False  # not(reverse)
-                    prev_matrix = matrix
+                    prev_matrix = matrix # excluded in rates code
                 else:
                     char = stdscr.getch()
                     if char == curses.ERR:
@@ -672,10 +808,10 @@ if __name__ == '__main__':
                             # if matrix != prev_matrix:
                             data_rdy = True
                             if blink:
-                                top_cornr.addstr(0, 0, 'Discards',
+                                top_cornr.addstr(0, 0, 'Rates',
                                                  curses.A_BOLD | curses.A_UNDERLINE | curses.A_REVERSE)
                             else:
-                                top_cornr.addstr(0, 0, 'Discards', curses.A_BOLD | curses.A_UNDERLINE)
+                                top_cornr.addstr(0, 0, 'Rates', curses.A_BOLD | curses.A_UNDERLINE)
                             blink = not (blink)
                         else:
                             time.sleep(0.1)
@@ -782,12 +918,13 @@ if __name__ == '__main__':
     #            remote = line.split(' ')[-1]
     #            switch_dict[sw_name][eth]['remote_switch'] = remote
     # logger.info('Done mapping switches.')
+    #matrix = get_discard(switch_dict, ssh_list)
+    curses.wrapper(draw, switch_dict, new_ssh_list)
 
-    #curses.wrapper(draw, switch_dict, new_ssh_list)
-    matrix = get_discard(switch_dict, ssh_list)
+    # print 'MATRIX:'
+    # print matrix
     #IPython.embed()
-    print 'MATRIX:'
-    print matrix
+
 
     close_ssh(ssh_list)
 
