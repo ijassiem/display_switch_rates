@@ -578,7 +578,7 @@ if __name__ == '__main__':
                         matrix[port_idx * 6 - 3][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#ingr
                         matrix[port_idx * 6 - 2][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#egr
                         matrix[port_idx * 6 - 1][0] = port[3:] + ' out'#remove Eth, include 1/17
-                        matrix[port_idx * 6][0] = port[3:] + ' tx in'
+                        matrix[port_idx * 6][0] = port[3:] + ' in'
 
                     except IndexError:
                         pass
@@ -666,33 +666,35 @@ if __name__ == '__main__':
                     blankc = 0
                     reverse = False
                     rates_index = False
+                    ii = -1
                     for i, row in enumerate(matrix):
-                    #for i, row in enumerate(n for m, n in enumerate(matrix) if (m + 4) % 6 == 0 or (m + 5) % 6 == 0 or m==0):
-                    #the code above enumerates every 6th element in list ie. [1,2,7,8,13,14,19,20 etc] these are the in out speed rates
+                    #for i, row in enumerate(n for m, n in enumerate(matrix) if (m + 4) % 6 == 0 or (m + 5) % 6 == 0 or m==0):#every 6th element in list ie. [1,2,7,8,13,14,19,20 etc] these are the in out speed rates
                         if (i)%6 == 0 or (i+1)%6 == 0: # every 6th element in list ie. [5,6,11,12,17,18,23,24... etc] these are the in out speed rates
                             rates_index = True # set a flag
+                            ii += 1
                         else:
                             rates_index = False
-                        if i == 0:
+                        if i == 0: # row 0 or line 0
                             for j, val in enumerate(row):
                                 if val == 0: # this line is excluded from rates code
                                     val = 'N/C' # this line is excluded from rates code
-                                if j == 0:
+                                if j == 0: #column 0 in line 0
                                     pass
                                 else:
-                                    col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),
-                                                     curses.A_BOLD | curses.A_UNDERLINE)
-                        else:
+                                    col_title.addstr(ii, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE) # title 'L1'
+                        else: # row 1 to 216
                         #elif (i+4)%6 == 0 or (i+5)%6 == 0: # prints every 6th row in matrix, which is the rates data
+                            change = False
                             for j, val in enumerate(row):
                                 ###################
                                 if prev_matrix[i][j] != matrix[i][j]:  # check for change in values
-                                    if not ((i) % 6 == 0 or (i + 1) % 6 == 0):  # exclude rate values
+                                    if not ((i) % 6 == 0 or (i + 1) % 6 == 0):  # exclude rate values, include errors and discards
+                                    #if i>16 and  i<18: # for testing
                                         change = True
                                     else:
-                                        change = False
+                                        pass #change = False
                                 else:
-                                    change = False
+                                    pass #change = False
                                 ###################
                                 if j == 0: # for first title row in display
                                     if val == 0:
@@ -700,9 +702,9 @@ if __name__ == '__main__':
                                     col_pair = 1
                                     if reverse: col_pair += 1
                                     if rates_index is True:
-                                        row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays L1/1 out, etc.
-                                    if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
-                                        row_title.addstr(i + blankc - 1 + 1, 0, ' ')
+                                        row_title.addstr(ii + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
+                                    #if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
+                                        #row_title.addstr(i + blankc - 1 + 1, 0, '@')
                                 #rates displaying #stdscr.addstr(y_pos, x_pos, "string to be displayed", color_arrangement)
                                 ##############################################################################
                                 else:  # for rows following first title row ^
@@ -710,11 +712,13 @@ if __name__ == '__main__':
                                     if not val: val = 0
                                     man = fman(val)
                                     exp = fexp(val)
+
                                     if exp < 3 and rates_index is True:
                                         col_pair = 1
                                         if reverse: col_pair += 1
                                         rate = 'Bs'
                                         val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+
                                     elif exp < 6 and rates_index is True:
                                         col_pair = 1
                                         if reverse: col_pair += 1
@@ -725,6 +729,7 @@ if __name__ == '__main__':
                                             val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
                                         else:
                                             val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+
                                     elif exp < 9 and rates_index is True:
                                         col_pair = 3
                                         if reverse: col_pair += 1
@@ -735,6 +740,7 @@ if __name__ == '__main__':
                                             val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
                                         else:
                                             val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+
                                     elif exp < 12 and rates_index is True:
                                         if man > 4.8:
                                             col_pair = 7
@@ -742,7 +748,7 @@ if __name__ == '__main__':
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
                                                              curses.color_pair(
                                                                  col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
-                                            row_title.addstr(i + blankc - 1, 0, matrix[i][0],
+                                            row_title.addstr(ii + blankc - 1, 0, matrix[i][0],
                                                              curses.color_pair(col_pair) | curses.A_BOLD)
                                         else:
                                             col_pair = 5
@@ -751,7 +757,7 @@ if __name__ == '__main__':
                                         man *= 10 ** (exp - 9)
                                         man = man.normalize()
                                         val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-                                    #else:
+
                                     elif rates_index is True:
                                         col_pair = 1
                                         rate = 'Bs'
@@ -769,12 +775,15 @@ if __name__ == '__main__':
                                     #if (i + 4) % 6 == 0 or (i + 5) % 6 == 0:
                                     if rates_index is True: #displays rates values only
                                         if change is True:
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))
+                                            disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))
+                                            row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(9) | curses.A_BOLD)
+                                            change = False
                                         else:
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair)) # testing higlight of rates during a change
+                                            disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair)) # testing higlight of rates during a change
+                                            row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(col_pair) | curses.A_BOLD)
 
-                                    if (i - 1) % 2 == 1:
-                                        disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
+                                    #if (i - 1) % 2 == 1:
+                                        #disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, '@')
                                 ##############################################################################
                                 #discard diplaying
                                 ##############################################################################
@@ -794,10 +803,7 @@ if __name__ == '__main__':
                                 #         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
                                 ###############################################################################
                             if (i - 1) % 2 == 1:
-                            #if (i+4)%6 == 0:
-                            #if True:
-                                blankc += 1
-                                #blankc = 0
+                                #blankc += 1
                                 reverse = False  # not(reverse)
                     prev_matrix = matrix # excluded in rates code
                 else:
