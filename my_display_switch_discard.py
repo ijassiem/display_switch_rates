@@ -667,6 +667,7 @@ if __name__ == '__main__':
                     reverse = False
                     rates_index = False
                     ii = -1
+                    change = False
                     for i, row in enumerate(matrix):
                     #for i, row in enumerate(n for m, n in enumerate(matrix) if (m + 4) % 6 == 0 or (m + 5) % 6 == 0 or m==0):#every 6th element in list ie. [1,2,7,8,13,14,19,20 etc] these are the in out speed rates
                         if (i)%6 == 0 or (i+1)%6 == 0: # every 6th element in list ie. [5,6,11,12,17,18,23,24... etc] these are the in out speed rates
@@ -684,12 +685,12 @@ if __name__ == '__main__':
                                     col_title.addstr(ii, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE) # title 'L1'
                         else: # row 1 to 216
                         #elif (i+4)%6 == 0 or (i+5)%6 == 0: # prints every 6th row in matrix, which is the rates data
-                            change = False
+                            #change = False
                             for j, val in enumerate(row):
                                 ###################
-                                if prev_matrix[i][j] != matrix[i][j]:  # check for change in values
-                                    if not ((i) % 6 == 0 or (i + 1) % 6 == 0):  # exclude rate values, include errors and discards
-                                    #if i>16 and  i<18: # for testing
+                                if not ((i) % 6 == 0 or (i + 1) % 6 == 0):  # exclude rate values, include errors and discards
+                                #if i>16 and i<18: # for testing
+                                    if prev_matrix[i][j] != matrix[i][j]:  # check for change in values
                                         change = True
                                     else:
                                         pass #change = False
@@ -703,8 +704,8 @@ if __name__ == '__main__':
                                     if reverse: col_pair += 1
                                     if rates_index is True:
                                         row_title.addstr(ii + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
-                                    #if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
-                                        #row_title.addstr(i + blankc - 1 + 1, 0, '@')
+                                    if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
+                                        row_title.addstr(i + blankc - 1 + 1, 0, ' ') #@
                                 #rates displaying #stdscr.addstr(y_pos, x_pos, "string to be displayed", color_arrangement)
                                 ##############################################################################
                                 else:  # for rows following first title row ^
@@ -763,8 +764,8 @@ if __name__ == '__main__':
                                         rate = 'Bs'
                                         val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
 
-                                    if change:
-                                        col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
+                                    # if change:
+                                    #     col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
                                     #if prev_matrix[i][j] != matrix[i][j]: # check for change in values
                                         #if not ((i) % 6 == 0 or (i+1) % 6 == 0): # exclude rate values
                                             #col_pair = 9
@@ -776,14 +777,16 @@ if __name__ == '__main__':
                                     if rates_index is True: #displays rates values only
                                         if change is True:
                                             disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))
-                                            row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(9) | curses.A_BOLD)
+                                            #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
+                                            #row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(9) | curses.A_BOLD)
                                             change = False
                                         else:
                                             disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair)) # testing higlight of rates during a change
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE)  # no change to column title colour
                                             row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(col_pair) | curses.A_BOLD)
 
-                                    #if (i - 1) % 2 == 1:
-                                        #disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, '@')
+                                    if (i - 1) % 2 == 1:
+                                        disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')#@
                                 ##############################################################################
                                 #discard diplaying
                                 ##############################################################################
@@ -802,8 +805,8 @@ if __name__ == '__main__':
                                 #     if (i - 1) % 2 == 1:
                                 #         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
                                 ###############################################################################
-                            if (i - 1) % 2 == 1:
-                                #blankc += 1
+                            if (i - 1) % 6 == 1:
+                                blankc += 1
                                 reverse = False  # not(reverse)
                     prev_matrix = matrix # excluded in rates code
                 else:
