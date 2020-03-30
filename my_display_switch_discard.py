@@ -779,7 +779,7 @@ if __name__ == '__main__':
                                             disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))
                                             #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
                                             #row_title.addstr(ii + blankc - 1, 0, matrix[i][0],curses.color_pair(9) | curses.A_BOLD)
-                                            change = False
+                                            change = False#
                                         else:
                                             disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair)) # testing higlight of rates during a change
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE)  # no change to column title colour
