@@ -527,10 +527,10 @@ if __name__ == '__main__':
                         port_list.append(port)
             port_list = sorted(port_list, key=natural_keys)
             #lines = len(port_list) * 7 + 1 # was *6, was *2
-            lines = len(port_list) * 1 + 1
+            lines = len(port_list) * 2 + 1
 
         #matrix = [[0 for x in range(cols)] for y in range(lines)]  # creates matrix, a 2-D list of zeros, lines x cols
-        matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in range(7)]  # creates matrix, a 3-D list of zeros, lines x cols
+        matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in range(2)]  # creates matrix, a 3-D list of zeros, lines x cols
 
         try:
             sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
@@ -557,88 +557,28 @@ if __name__ == '__main__':
                             close_ssh(ssh_list)
                             raise ValueError
                         try:
-                            # matrix[0][idx] = switch
-                            # matrix[rem_sw_nr * 7 - 6][idx] = data['sw_status']
-                            # matrix[rem_sw_nr * 7 - 5][idx] = data['rx_discard']
-                            # matrix[rem_sw_nr * 7 - 4][idx] = data['tx_discard']
-                            # matrix[rem_sw_nr * 7 - 3][idx] = data['rx_err']
-                            # matrix[rem_sw_nr * 7 - 2][idx] = data['tx_err']
-                            # matrix[rem_sw_nr * 7 - 1][idx] = data['egress_rate']
-                            # matrix[rem_sw_nr * 7][idx] = data['ingress_rate']
                             matrix[0][0][idx] = switch
-                            matrix[1][0][idx] = switch
-                            matrix[2][0][idx] = switch
-                            matrix[3][0][idx] = switch
-                            matrix[4][0][idx] = switch
-                            matrix[5][0][idx] = switch
-                            matrix[6][0][idx] = switch
-                            matrix[0][rem_sw_nr * 1][idx] = data['sw_status']
-                            matrix[1][rem_sw_nr * 1][idx] = data['rx_discard']
-                            matrix[2][rem_sw_nr * 1][idx] = data['tx_discard']
-                            matrix[3][rem_sw_nr * 1][idx] = data['rx_err']
-                            matrix[4][rem_sw_nr * 1][idx] = data['tx_err']
-                            matrix[5][rem_sw_nr * 1][idx] = data['egress_rate']
-                            matrix[6][rem_sw_nr * 1][idx] = data['ingress_rate']
 
-                            # matrix[rem_sw_nr * 7 - 6][0] = 'L' + str(rem_sw_nr) + ' sw st'
-                            # matrix[rem_sw_nr * 7 - 5][0] = 'L' + str(rem_sw_nr) + ' rx ds'
-                            # matrix[rem_sw_nr * 7 - 4][0] = 'L' + str(rem_sw_nr) + ' tx ds'
-                            # matrix[rem_sw_nr * 7 - 3][0] = 'L' + str(rem_sw_nr) + ' rx err'
-                            # matrix[rem_sw_nr * 7 - 2][0] = 'L' + str(rem_sw_nr) + ' tx err'
-                            # matrix[rem_sw_nr * 7 - 1][0] = 'L' + str(rem_sw_nr) + ' out'
-                            # matrix[rem_sw_nr * 7][0] = 'L' + str(rem_sw_nr) + ' in'
-                            matrix[0][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' sw st'
-                            matrix[1][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' rx ds'
-                            matrix[2][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' tx ds'
-                            matrix[3][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' rx err'
-                            matrix[4][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' tx err'
-                            matrix[5][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' out'
-                            matrix[6][rem_sw_nr * 1][0] = 'L' + str(rem_sw_nr) + ' in'
+                            matrix[0][rem_sw_nr*2-1][idx] = data['egress_rate']
+                            matrix[0][rem_sw_nr*2][idx] = data['ingress_rate']
+
+                            matrix[0][rem_sw_nr*2-1][0] = 'L' + str(rem_sw_nr) + ' out'
+                            matrix[0][rem_sw_nr*2][0] = 'L' + str(rem_sw_nr) + ' in'
                         except IndexError:
                             pass
                 else: # for leaves display
                     try:
                         port_idx = port_list.index(port) + 1
                         matrix[0][0][idx] = switch  # switch is a key value in switch_dict eg.L1
-                        matrix[1][0][idx] = switch
-                        matrix[2][0][idx] = switch
-                        matrix[3][0][idx] = switch
-                        matrix[4][0][idx] = switch
-                        matrix[5][0][idx] = switch
-                        matrix[6][0][idx] = switch
-                        # matrix[port_idx * 7 - 6][idx] = data['sw_status']
-                        # matrix[port_idx * 7 - 5][idx] = data['rx_discard']  #
-                        # matrix[port_idx * 7 - 4][idx] = data['tx_discard']  #
-                        # matrix[port_idx * 7 - 3][idx] = data['rx_err']#
-                        # matrix[port_idx * 7 - 2][idx] = data['tx_err']#
-                        # matrix[port_idx * 7 - 1][idx] = data['egress_rate']
-                        # matrix[port_idx * 7][idx] = data['ingress_rate']
-                        matrix[0][port_idx * 1][idx] = data['sw_status']
-                        matrix[1][port_idx * 1][idx] = data['rx_discard']  #
-                        matrix[2][port_idx * 1][idx] = data['tx_discard']  #
-                        matrix[3][port_idx * 1][idx] = data['rx_err']  #
-                        matrix[4][port_idx * 1][idx] = data['tx_err']  #
-                        matrix[5][port_idx * 1][idx] = data['egress_rate']
-                        matrix[6][port_idx * 1][idx] = data['ingress_rate']
 
-                        # matrix[port_idx * 7 - 6][0] = port[3:] + ' sw st'  # remove Eth, include 1/17#
-                        # matrix[port_idx * 7 - 5][0] = port[3:] + ' rx ds'  # remove Eth, include 1/17#
-                        # matrix[port_idx * 7 - 4][0] = port[3:] + ' tx ds '  # remove Eth, include 1/17#
-                        # matrix[port_idx * 7 - 3][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#ingr
-                        # matrix[port_idx * 7 - 2][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#egr
-                        # matrix[port_idx * 7 - 1][0] = port[3:] + ' out'#remove Eth, include 1/17
-                        # matrix[port_idx * 7][0] = port[3:] + ' in'
-                        matrix[0][port_idx * 1][0] = port[3:] + ' sw st'  # remove Eth, include 1/17#
-                        matrix[1][port_idx * 1][0] = port[3:] + ' rx ds'  # remove Eth, include 1/17#
-                        matrix[2][port_idx * 1][0] = port[3:] + ' tx ds '  # remove Eth, include 1/17#
-                        matrix[3][port_idx * 1][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#ingr
-                        matrix[4][port_idx * 1][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#egr
-                        matrix[5][port_idx * 1][0] = port[3:] + ' out'  # remove Eth, include 1/17
-                        matrix[6][port_idx * 1][0] = port[3:] + ' in'
+                        matrix[0][port_idx*2-1][idx] = data['egress_rate']
+                        matrix[0][port_idx*2][idx] = data['ingress_rate']  #
+
+                        matrix[0][port_idx*2-1][0] = port[3:] + ' out'  # remove Eth, include 1/17#
+                        matrix[0][port_idx*2][0] = port[3:] + ' in'  # remove Eth, include 1/17#
 
                     except IndexError:
                         pass
-        #IPython.embed()
         return matrix
 
 
@@ -659,11 +599,11 @@ if __name__ == '__main__':
         matrix = get_discard(switch_dict, ssh_list)
 
         prev_matrix = matrix # excluded in rates code
-        m_rows = len(matrix)
+        m_rows = len(matrix[0])
         m_rows = m_rows + (m_rows / 2) # m_rows = no of rows or lines for drawing matrix
-        m_cols = len(matrix[0]) # m_cols = no of columns for drawing matrix
+        m_cols = len(matrix[0][0]) # m_cols = no of columns for drawing matrix
         # find max number size in matrix
-        max_num = max([x for x in [j for i in matrix for j in i] if isinstance(x, int)])
+        max_num = max([x for x in [j for i in matrix[0] for j in i] if isinstance(x, int)])
         colw = fexp(max_num) + 2
         if colw < 9: colw = 9
         blank_str = ' ' * colw
@@ -721,147 +661,81 @@ if __name__ == '__main__':
                     thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list))
                     blankc = 0
                     reverse = False
-                    rates_index = False
-                    status_index = False
-                    ii = -1
-                    for i, row in enumerate(matrix):
-                        if (i)%7 == 0 or (i+1)%7 == 0: # every 7th element in list ie. [5,6,11,12,17,18,23,24... etc] these are the in out speed rates
-                            rates_index = True # set a flag
-                            ii += 1 # new iterator for every 6th row/column
-                        else:
-                            rates_index = False
+                    for k, page in enumerate(matrix):
+                        if k == 0:
+                            for i, row in enumerate(page):
+                                if i == 0: # row 0 or line 0
+                                    for j, val in enumerate(row):
+                                        if j == 0:
+                                            pass
 
-                        if ((i - 1) % 7 == 0): # check switch status lines
-                            status_index = True
-                        else:
-                            status_index = False
-
-                        if i == 0: # row 0 or line 0
-                            for j, val in enumerate(row):
-                                if val == 0: # this line is excluded from rates code
-                                    val = 'N/C' # this line is excluded from rates code
-                                if j == 0: #column 0 in line 0
-                                    pass
+                                        else:
+                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),curses.A_BOLD | curses.A_UNDERLINE)
                                 else:
-                                    col_title.addstr(ii, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE) # title 'L1'
-                        else: # row 1 to 216
-                        #elif (i+4)%6 == 0 or (i+5)%6 == 0: # prints every 6th row in matrix, which is the rates data
-
-                            for j, val in enumerate(row):
-
-                                if j == 0: # for first title row in display
-                                    if val == 0:
-                                        val = 'N/C'
-                                    col_pair = 1
-                                    if reverse: col_pair += 1
-                                    if rates_index is True:
-                                        row_title.addstr(ii + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
-                                    # if rates_index is True and status_flag is True:
-                                    #     row_title.addstr(ii + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD | curses.A_REVERSE)
-                                    if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
-                                        row_title.addstr(i + blankc - 1 + 1, 0, ' ') #@
-                                ##############################################################################
-                                else:  # for rows following first title row ^
-                                    width = colw - 2
-                                    if not val: val = 0
-                                    man = fman(val)
-                                    exp = fexp(val)
-
-                                    if exp < 3 and rates_index is True:
-                                        col_pair = 1
-                                        if reverse: col_pair += 1
-                                        rate = 'Bs'
-                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
-
-                                    elif exp < 6 and rates_index is True:
-                                        col_pair = 1
-                                        if reverse: col_pair += 1
-                                        rate = 'KB'
-                                        man *= 10 ** (exp - 3)
-                                        man = man.normalize()
-                                        if width - 8 < 0:
-                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
-                                        else:
-                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-
-                                    elif exp < 9 and rates_index is True:
-                                        col_pair = 3
-                                        if reverse: col_pair += 1
-                                        rate = 'MB'
-                                        man *= 10 ** (exp - 6)
-                                        man = man.normalize()
-                                        if width - 8 < 0:
-                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
-                                        else:
-                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-
-                                    elif exp < 12 and rates_index is True:
-                                        if man > 4.8:
-                                            col_pair = 7
+                                    for j, val in enumerate(row):
+                                        if j == 0: # for first title row in display
+                                            if val == 0:
+                                                val = 'N/C'
+                                            col_pair = 1
                                             if reverse: col_pair += 1
-                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
-                                                             curses.color_pair(
-                                                                 col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
-                                            row_title.addstr(ii + blankc - 1, 0, matrix[i][0],
-                                                             curses.color_pair(col_pair) | curses.A_BOLD)
-                                        else:
-                                            col_pair = 5
-                                            if reverse: col_pair += 1
-                                        rate = 'GB'
-                                        man *= 10 ** (exp - 9)
-                                        man = man.normalize()
-                                        val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-
-                                    elif rates_index is True:
-                                        col_pair = 1
-                                        rate = 'Bs'
-                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
-
-                                    # if change:
-                                    #     col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)  # change column title colour
-                                    #if prev_matrix[i][j] != matrix[i][j]: # check for change in values
-                                        #if not ((i) % 6 == 0 or (i+1) % 6 == 0): # exclude rate values
-                                            #col_pair = 9
-                                            #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE) #change column title colour
-                                            #row_title.addstr(i + blankc - 1, j, 'xxx',curses.color_pair(col_pair) | curses.A_BOLD) # testing position
-                                            #row_title.addstr(i + blankc - 1, 0, matrix[i][0],
-                                             #                curses.color_pair(col_pair) | curses.A_BOLD) #change row title colour
-                                    #if (i + 4) % 6 == 0 or (i + 5) % 6 == 0:
-
-                                    if status_index is True:
-                                        if matrix[i][j] == 0:
-                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE )
-                                        else:
-                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE | curses.A_REVERSE)
-
-                                    if rates_index is True: #displays rates values only
-                                        disp_wind.addstr(ii + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
-                                        # row_title.addstr(ii + blankc - 1, 0, val,curses.color_pair(col_pair) | curses.A_BOLD)
-
-                                    if (i - 1) % 2 == 1:
-                                        disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')#@
-                                ##############################################################################
-                                #discard diplaying
-                                ##############################################################################
-                                # else: # for rows following first title row
-                                #     if prev_matrix[i][j] != val: # the discard packets value has changed
-                                #         col_pair = 7
-                                #         col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),
-                                #                          curses.color_pair(
-                                #                              col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
-                                #         row_title.addstr(i + blankc - 1, 0, matrix[i][0],
-                                #                          curses.color_pair(col_pair) | curses.A_BOLD)
-                                #     else:
-                                #         col_pair = 1
-                                #     val = '{0:>{1}}'.format(val, colw)
-                                #     disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
-                                #     if (i - 1) % 2 == 1:
-                                #         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
-                                ###############################################################################
-                            if (i - 1) % 7 == 1:
-                                blankc += 1
-                                reverse = False  # not(reverse)
-                    prev_matrix = matrix # excluded in rates code
+                                            row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
+                                            if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
+                                                row_title.addstr(i + blankc - 1 + 1, 0, ' ') #@
+                                        else:  # for rows following first title row ^
+                                            width = colw - 2
+                                            if not val:
+                                                val = 0
+                                            man = fman(val)
+                                            exp = fexp(val)
+                                            if exp < 3:
+                                                col_pair = 1
+                                                if reverse: col_pair += 1
+                                                rate = 'Bs'
+                                                val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+                                            elif exp < 6:
+                                                col_pair = 1
+                                                if reverse: col_pair += 1
+                                                rate = 'KB'
+                                                man *= 10 ** (exp - 3)
+                                                man = man.normalize()
+                                                if width - 8 < 0:
+                                                    val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                                else:
+                                                    val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                            elif exp < 9:
+                                                col_pair = 3
+                                                if reverse: col_pair += 1
+                                                rate = 'MB'
+                                                man *= 10 ** (exp - 6)
+                                                man = man.normalize()
+                                                if width - 8 < 0:
+                                                    val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                                else:
+                                                    val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                            elif exp < 12:
+                                                if man > 4.8:
+                                                    col_pair = 7
+                                                    if reverse: col_pair += 1
+                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
+                                                    row_title.addstr(i + blankc - 1, 0, matrix[i][0],curses.color_pair(col_pair) | curses.A_BOLD)
+                                                else:
+                                                    col_pair = 5
+                                                    if reverse: col_pair += 1
+                                                rate = 'GB'
+                                                man *= 10 ** (exp - 9)
+                                                man = man.normalize()
+                                                val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                            else:
+                                                col_pair = 1
+                                                rate = 'Bs'
+                                                val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
+                                            if (i - 1) % 2 == 1:
+                                                disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')#@
+                                    if (i-1)%2 == 1:
+                                        blankc += 1
+                                        reverse = False  # not(reverse)
+                            #prev_matrix = matrix # excluded in rates code
                 else:
                     char = stdscr.getch()
                     if char == curses.ERR:
