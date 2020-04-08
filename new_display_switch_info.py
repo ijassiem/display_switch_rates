@@ -447,8 +447,32 @@ if __name__ == '__main__':
         value = [atoi(c) for c in re.split('(\d+)', text)]
         return value
 
+    def create_matrix(switch_dict, opts):
+        mleaves = opts.maxleaves
+        cols = len(switch_dict.keys()) + 1  # length or number of elements in dictionary
 
-    def get_discard(switch_dict, ssh_list):
+        if opts.display == 'spines':
+            lines = mleaves * 2 + 1  # max 36 leaves, *2 for tx and rx
+        else:
+            # Find how many ethernet ports there are on the leaves
+            port_list = []
+            lines = 0
+            for k, v in switch_dict.iteritems():  # same as .items(), display keys and values
+                for port in v.keys():  # port = Eth1/1 or Eth1/n
+                    try:
+                        port_list.index(port)
+                    except ValueError:
+                        port_list.append(port)
+            port_list = sorted(port_list, key=natural_keys)
+            # lines = len(port_list) * 7 + 1 # was *6, was *2
+            lines = len(port_list) * 2 + 1
+
+        matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
+                  range(6)]  # creates matrix, a 3-D list of zeros, lines x cols
+        return matrix
+
+
+    def get_discard(switch_dict, ssh_list, matrix):
         # Get switch discard:
         cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec|error packets"'
         #cmd = 'show interface ethernet'
@@ -529,8 +553,10 @@ if __name__ == '__main__':
             #lines = len(port_list) * 7 + 1 # was *6, was *2
             lines = len(port_list) * 2 + 1
 
-        #matrix = [[0 for x in range(cols)] for y in range(lines)]  # creates matrix, a 2-D list of zeros, lines x cols
-        matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in range(2)]  # creates matrix, a 3-D list of zeros, lines x cols
+
+            #matrix = [[0 for x in range(cols)] for y in range(lines)]  # creates matrix, a 2-D list of zeros, lines x cols
+        # matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in range(5)]  # creates matrix, a 3-D list of zeros, lines x cols
+
 
         try:
             sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
@@ -558,31 +584,93 @@ if __name__ == '__main__':
                             raise ValueError
                         try:
                             matrix[0][0][idx] = switch
+                            matrix[1][0][idx] = switch
+                            matrix[2][0][idx] = switch
+                            matrix[3][0][idx] = switch
 
-                            matrix[0][rem_sw_nr*2-1][idx] = data['egress_rate']
-                            matrix[0][rem_sw_nr*2][idx] = data['ingress_rate']
+                            #TODO update values difference
+                            matrix[0][rem_sw_nr*2-1][idx] = data['egress_rate']  # values for egress rate
+                            matrix[0][rem_sw_nr*2][idx] = data['ingress_rate']  # values for ingress rate
+                            matrix[1][rem_sw_nr * 2 - 1][idx] = data['rx_err']  # values for rx errors
+                            matrix[1][rem_sw_nr * 2][idx] = data['tx_err']  # values for tx errors
+                            matrix[2][rem_sw_nr * 2 - 1][idx] = data['rx_discard']  # values for rx discards
+                            matrix[2][rem_sw_nr * 2][idx] = data['tx_discard']  # values for tx discards
+                            matrix[3][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
+                            matrix[3][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
 
-                            matrix[0][rem_sw_nr*2-1][0] = 'L' + str(rem_sw_nr) + ' out'
-                            matrix[0][rem_sw_nr*2][0] = 'L' + str(rem_sw_nr) + ' in'
+                            matrix[0][rem_sw_nr*2-1][0] = 'L' + str(rem_sw_nr) + ' out'  # row headings for egress rate
+                            matrix[0][rem_sw_nr*2][0] = 'L' + str(rem_sw_nr) + ' in'  # row headings for ingress rate
+                            matrix[1][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx err'  # row headings for rx errors
+                            matrix[1][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx err'  # row headings for tx errors
+                            matrix[2][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx ds'  # row headings for rx discards
+                            matrix[2][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx ds'  # row headings for tx discards
+                            matrix[3][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status
+                            matrix[3][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status, same as above
+
+                        #TODO add except TypeError
                         except IndexError:
                             pass
                 else: # for leaves display
                     try:
                         port_idx = port_list.index(port) + 1
+
                         matrix[0][0][idx] = switch  # switch is a key value in switch_dict eg.L1
+                        matrix[1][0][idx] = switch
+                        matrix[2][0][idx] = switch
+                        matrix[3][0][idx] = switch
 
-                        matrix[0][port_idx*2-1][idx] = data['egress_rate']
-                        matrix[0][port_idx*2][idx] = data['ingress_rate']  #
+                        # matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
+                        # matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
+                        # matrix[1][port_idx * 2 - 1][idx] = data['rx_err']  # values for rx errors
+                        # matrix[1][port_idx * 2][idx] = data['tx_err']  # values for tx errors
+                        # matrix[2][port_idx * 2 - 1][idx] = data['rx_discard']  # values for rx discards
+                        # matrix[2][port_idx * 2][idx] = data['tx_discard']  # values for tx discards
+                        # matrix[3][port_idx * 2 - 1][idx] = data['sw_status']  # values for switch status
+                        # matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status, same as above
 
-                        matrix[0][port_idx*2-1][0] = port[3:] + ' out'  # remove Eth, include 1/17#
-                        matrix[0][port_idx*2][0] = port[3:] + ' in'  # remove Eth, include 1/17#
 
-                    except IndexError:
+                        ##for testing above code
+                        matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
+                        matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
+
+                        matrix[1][port_idx * 2 - 1][idx] = data['rx_err'] - matrix[5][port_idx * 2 - 1][idx]  # values for current rx errors minus prev
+                        matrix[1][port_idx * 2][idx] = data['tx_err'] - matrix[5][port_idx * 2][idx]  # values for current tx errors minus prev
+                        # matrix[1][port_idx * 2 - 1][idx] = data['rx_err']
+                        # matrix[1][port_idx * 2][idx] = data['tx_err']
+
+                        matrix[2][port_idx * 2 - 1][idx] = data['rx_discard'] - matrix[4][port_idx * 2 - 1][idx] # values for current minus prev rx discards
+                        matrix[2][port_idx * 2][idx] = data['tx_discard'] - matrix[4][port_idx * 2][idx]  # values for current minus prev tx discards
+                        # matrix[2][port_idx * 2 - 1][idx] = data['rx_discard']  # values for rx discards
+                        # matrix[2][port_idx * 2][idx] = data['tx_discard']  # values for tx discards
+
+                        matrix[3][port_idx * 2 - 1][idx] = data['sw_status']   # values for switch status
+                        matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status same as above
+                        #IPython.embed()
+                        matrix[4][port_idx * 2 - 1][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[4]
+                        matrix[4][port_idx * 2][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[4]
+
+                        matrix[5][port_idx * 2 - 1][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[5]
+                        matrix[5][port_idx * 2][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[5]
+                        ##for testing above code
+
+
+                        matrix[0][port_idx * 2 - 1][0] = port[3:] + ' out'  # remove Eth, include 1/17#
+                        matrix[0][port_idx * 2][0] = port[3:] + ' in'  # remove Eth, include 1/17#
+                        matrix[1][port_idx * 2 - 1][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#
+                        matrix[1][port_idx * 2][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#
+                        matrix[2][port_idx * 2 - 1][0] = port[3:] + ' rx ds'  # row headings for rx discards
+                        matrix[2][port_idx * 2][0] = port[3:] + ' tx ds'  # row headings for tx discards
+                        matrix[3][port_idx * 2 - 1][0] = port[3:] + ' sw st'  # row headings for switch status
+                        matrix[3][port_idx * 2][0] = port[3:] + ' sw st'  # row headings for switch status, same as above
+
+                    #except IndexError:
+                    except (IndexError, TypeError):
                         pass
+
         return matrix
 
 
-    def draw(stdscr, switch_dict, ssh_list): # TODO alter color changing
+    def draw(stdscr, switch_dict, ssh_list, matrix): # TODO alter color changing
         from decimal import Decimal
 
         def fexp(number): # returns the order of magnitude of number
@@ -596,7 +684,9 @@ if __name__ == '__main__':
         stdscr.clear()
         lines = curses.LINES # size of console screen HORI
         cols = curses.COLS # size of console screen VERT
-        matrix = get_discard(switch_dict, ssh_list)
+        # matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
+        #           range(5)]  # creates matrix, a 3-D list of zeros, lines x cols
+        matrix = get_discard(switch_dict, ssh_list, matrix)
 
         prev_matrix = matrix # excluded in rates code
         m_rows = len(matrix[0])
@@ -617,7 +707,10 @@ if __name__ == '__main__':
         curses.init_pair(6, curses.COLOR_GREEN, -1)
         curses.init_pair(7, curses.COLOR_RED, -1)
         curses.init_pair(8, curses.COLOR_RED, -1)
-        curses.init_pair(9, curses.COLOR_RED, curses.COLOR_YELLOW)
+
+        curses.init_pair(9, curses.COLOR_RED, curses.COLOR_YELLOW) #errors
+        curses.init_pair(10, curses.COLOR_RED, curses.COLOR_GREEN) #discards
+        curses.init_pair(11, curses.COLOR_RED, curses.COLOR_CYAN) #switch status
         #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
         row_title = curses.newpad(m_rows, colw)
@@ -658,7 +751,7 @@ if __name__ == '__main__':
             while True:
                 if data_rdy:
                     data_rdy = False
-                    thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list))
+                    thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list, matrix))
                     blankc = 0
                     reverse = False
                     for k, page in enumerate(matrix):
@@ -729,7 +822,16 @@ if __name__ == '__main__':
                                                 col_pair = 1
                                                 rate = 'Bs'
                                                 val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
+
+                                            #disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))  # default colour scheme
+                                            if matrix[1][i][j] > 0:  # errors, set colour scheme
+                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=CYAN
+                                            if matrix[2][i][j] > 0:  # discards, set colour scheme
+                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
+                                            if matrix[3][i][j] > 0 :  # switch status, set colour scheme
+                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=GREEN
+
                                             if (i - 1) % 2 == 1:
                                                 disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')#@
                                     if (i-1)%2 == 1:
@@ -854,8 +956,14 @@ if __name__ == '__main__':
     #            remote = line.split(' ')[-1]
     #            switch_dict[sw_name][eth]['remote_switch'] = remote
     # logger.info('Done mapping switches.')
-    #matrix = get_discard(switch_dict, ssh_list)
-    curses.wrapper(draw, switch_dict, new_ssh_list)
+    matrix = create_matrix(switch_dict, opts)
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    #
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    curses.wrapper(draw, switch_dict, new_ssh_list, matrix)
 
     # print 'MATRIX:'
     # print matrix
