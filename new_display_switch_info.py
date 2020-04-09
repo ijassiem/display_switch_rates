@@ -528,7 +528,7 @@ if __name__ == '__main__':
                             switch_dict[sw_name][eth]['rx_err'] = rx_err
                             switch_dict[sw_name][eth]['tx_err'] = tx_err
                             switch_dict[sw_name][eth]['sw_status'] = time.time()
-                            # switch_dict['L9']['Eth1/1']   3128
+                            # switch_dict['L9']['Eth1/1']   3128#
 
                 good_output = True
             except (ValueError, IndexError):
