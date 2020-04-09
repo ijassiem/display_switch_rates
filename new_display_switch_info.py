@@ -490,9 +490,9 @@ if __name__ == '__main__':
                     sw_name_idx = [i for i, s in enumerate(output) if 'CBFSW' in s][0]  # [0] is index of desired element in list comprehension. sw_name_idx is index of element containing CBFSW
                     sw_name = output[sw_name_idx].split(' ')[0].split('-')[-1]  # extracts eg. L28 from string: CBFSW-L28 [standalone: master] > terminal type dumb'
                     for i, line in enumerate(output):
-                        if line.startswith('status'):
-                            sw_status = line.split(':')[1] # splits into list'  60 seconds ingress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
-                            sw_status = int(sw_status.strip())
+                        # if line.startswith('status'):
+                        #     sw_status = line.split(':')[1] # splits into list'  60 seconds ingress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
+                        #     sw_status = int(sw_status.strip())
                         if line.startswith('Eth1'):
                             eth = line  # extracts Eth1/36 from output
                         if line.startswith('  60 seconds ingress'):
@@ -726,9 +726,10 @@ if __name__ == '__main__':
         curses.init_pair(7, curses.COLOR_RED, -1)
         curses.init_pair(8, curses.COLOR_RED, -1)
 
-        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW) #errors
-        curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_GREEN) #discards
-        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_CYAN) #switch status
+        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # colour scheme for discards
+        curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_RED)  # colour scheme for errors
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_CYAN)  # colour scheme for switch status
+
         #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
         row_title = curses.newpad(m_rows, colw)
@@ -782,20 +783,7 @@ if __name__ == '__main__':
                                         if j == 0:
                                             pass
                                         else:
-                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),curses.A_BOLD | curses.A_UNDERLINE )
-
-                                        #     ######
-                                        #     pass
-                                        # elif val == 0:
-                                        #     val = 'N/C'
-                                        #     val = 0
-                                        #     if time.time() - matrix[3][i][j] > 2:
-                                        #         col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE | curses.color_pair(10))
-                                        #     else:
-                                        #         col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
-                                        # else:
-                                        #     col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
-
+                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
 
                                 else:
                                     for j, val in enumerate(row):
@@ -856,18 +844,19 @@ if __name__ == '__main__':
                                                 rate = 'Bs'
                                                 val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
 
-                                            #disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))  # default colour scheme
                                             if matrix[1][i][j] > 0:  # errors, set colour scheme
-                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=CYAN
+                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
                                             if matrix[2][i][j] > 0:  # discards, set colour scheme
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
-                                            #if matrix[3][i][j] == 0 :  # switch status, set colour scheme
-                                            if time.time() - matrix[3][i][j] > 8:  # switch status, set colour scheme
-                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=GREEN
+                                            if time.time() - matrix[3][i][j] > 6:  # switch status, set colour scheme, no response in 6 sec
+                                                if opts.display == 'leaves':
+                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[k][0][j], colw), curses.A_REVERSE | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
+                                                elif opts.display == 'spines':
+                                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.A_REVERSE)  # 11=CYAN
 
                                             if (i - 1) % 2 == 1:
-                                                disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')#@
+                                                disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
                                     if (i-1)%2 == 1:
                                         blankc += 1
                                         reverse = False  # not(reverse)
@@ -991,6 +980,8 @@ if __name__ == '__main__':
     #            switch_dict[sw_name][eth]['remote_switch'] = remote
     # logger.info('Done mapping switches.')
     matrix = create_matrix(switch_dict, opts)
+    matrix = get_discard(switch_dict, ssh_list, matrix)
+    matrix = get_discard(switch_dict, ssh_list, matrix)
     matrix = get_discard(switch_dict, ssh_list, matrix)
     # matrix = get_discard(switch_dict, ssh_list, matrix)
     #
