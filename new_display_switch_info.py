@@ -302,7 +302,7 @@ if __name__ == '__main__':
                       help='Number of leaf switches in the system.')
     parser.add_option('-p', '--maxspines', type=int, default=18,
                       help='Number of spine switches in the system.')
-    parser.add_option('-n', '--numsw', type=int, default=28,
+    parser.add_option('-n', '--numsw', type=int, default=36,
                       help='Number of switches to process.')
     parser.add_option('-t', '--startswitch', type=int, default=1,
                       help='Start displaying from specified switch.')
@@ -449,7 +449,8 @@ if __name__ == '__main__':
 
     def create_matrix(switch_dict, opts):
         mleaves = opts.maxleaves
-        cols = len(switch_dict.keys()) + 1  # length or number of elements in dictionary
+        #cols = len(switch_dict.keys()) + 1  # length or number of elements in dictionary
+        cols = 36 + 1
 
         if opts.display == 'spines':
             lines = mleaves * 2 + 1  # max 36 leaves, *2 for tx and rx
@@ -464,11 +465,12 @@ if __name__ == '__main__':
                     except ValueError:
                         port_list.append(port)
             port_list = sorted(port_list, key=natural_keys)
-            # lines = len(port_list) * 7 + 1 # was *6, was *2
-            lines = len(port_list) * 2 + 1
+            #lines = len(port_list) * 2 + 1
+            lines = 36 * 2 + 1
 
         matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
                   range(6)]  # creates matrix, a 3-D list of zeros, lines x cols
+        #IPython.embed()
         return matrix
 
 
@@ -523,7 +525,7 @@ if __name__ == '__main__':
                             switch_dict[sw_name][eth]['egress_rate'] = egr_rate
                             switch_dict[sw_name][eth]['rx_err'] = rx_err
                             switch_dict[sw_name][eth]['tx_err'] = tx_err
-                            switch_dict[sw_name][eth]['sw_status'] = sw_status
+                            switch_dict[sw_name][eth]['sw_status'] = time.time()
                             # switch_dict['L9']['Eth1/1']   3128
 
                 good_output = True
@@ -708,9 +710,9 @@ if __name__ == '__main__':
         curses.init_pair(7, curses.COLOR_RED, -1)
         curses.init_pair(8, curses.COLOR_RED, -1)
 
-        curses.init_pair(9, curses.COLOR_RED, curses.COLOR_YELLOW) #errors
-        curses.init_pair(10, curses.COLOR_RED, curses.COLOR_GREEN) #discards
-        curses.init_pair(11, curses.COLOR_RED, curses.COLOR_CYAN) #switch status
+        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW) #errors
+        curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_GREEN) #discards
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_CYAN) #switch status
         #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
         row_title = curses.newpad(m_rows, colw)
@@ -759,11 +761,26 @@ if __name__ == '__main__':
                             for i, row in enumerate(page):
                                 if i == 0: # row 0 or line 0
                                     for j, val in enumerate(row):
+                                        if val == 0:
+                                            val = 'N/C'
                                         if j == 0:
                                             pass
-
                                         else:
-                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),curses.A_BOLD | curses.A_UNDERLINE)
+                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw),curses.A_BOLD | curses.A_UNDERLINE )
+
+                                        #     ######
+                                        #     pass
+                                        # elif val == 0:
+                                        #     val = 'N/C'
+                                        #     val = 0
+                                        #     if time.time() - matrix[3][i][j] > 2:
+                                        #         col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE | curses.color_pair(10))
+                                        #     else:
+                                        #         col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
+                                        # else:
+                                        #     col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
+
+
                                 else:
                                     for j, val in enumerate(row):
                                         if j == 0: # for first title row in display
@@ -829,7 +846,8 @@ if __name__ == '__main__':
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=CYAN
                                             if matrix[2][i][j] > 0:  # discards, set colour scheme
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
-                                            if matrix[3][i][j] > 0 :  # switch status, set colour scheme
+                                            #if matrix[3][i][j] == 0 :  # switch status, set colour scheme
+                                            if time.time() - matrix[3][i][j] > 5:  # switch status, set colour scheme
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=GREEN
 
                                             if (i - 1) % 2 == 1:
@@ -957,7 +975,7 @@ if __name__ == '__main__':
     #            switch_dict[sw_name][eth]['remote_switch'] = remote
     # logger.info('Done mapping switches.')
     matrix = create_matrix(switch_dict, opts)
-    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    matrix = get_discard(switch_dict, ssh_list, matrix)
     # matrix = get_discard(switch_dict, ssh_list, matrix)
     #
     # matrix = get_discard(switch_dict, ssh_list, matrix)
@@ -967,7 +985,7 @@ if __name__ == '__main__':
 
     # print 'MATRIX:'
     # print matrix
-    #IPython.embed()
+    # IPython.embed()
 
 
     close_ssh(ssh_list)
