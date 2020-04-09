@@ -860,7 +860,7 @@ if __name__ == '__main__':
                                     if (i-1)%2 == 1:
                                         blankc += 1
                                         reverse = False  # not(reverse)
-                            ##prev_matrix = matrix # excluded in rates code
+                            ###prev_matrix = matrix # excluded in rates code
                 else:
                     char = stdscr.getch()
                     if char == curses.ERR:
