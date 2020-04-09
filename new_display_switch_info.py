@@ -454,19 +454,21 @@ if __name__ == '__main__':
 
         if opts.display == 'spines':
             lines = mleaves * 2 + 1  # max 36 leaves, *2 for tx and rx
+            cols = opts.maxspines + 1
         else:
             # Find how many ethernet ports there are on the leaves
-            port_list = []
-            lines = 0
-            for k, v in switch_dict.iteritems():  # same as .items(), display keys and values
-                for port in v.keys():  # port = Eth1/1 or Eth1/n
-                    try:
-                        port_list.index(port)
-                    except ValueError:
-                        port_list.append(port)
-            port_list = sorted(port_list, key=natural_keys)
-            #lines = len(port_list) * 2 + 1
-            lines = 36 * 2 + 1
+            # port_list = []
+            # lines = 0
+            # for k, v in switch_dict.iteritems():  # same as .items(), display keys and values
+            #     for port in v.keys():  # port = Eth1/1 or Eth1/n
+            #         try:
+            #             port_list.index(port)
+            #         except ValueError:
+            #             port_list.append(port)
+            # port_list = sorted(port_list, key=natural_keys)
+            # #lines = len(port_list) * 2 + 1
+            lines = opts.numsw * 2 + 1
+            cols = opts.maxleaves + 1
 
         matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
                   range(6)]  # creates matrix, a 3-D list of zeros, lines x cols
@@ -584,24 +586,36 @@ if __name__ == '__main__':
                                 data['remote_switch']))
                             close_ssh(ssh_list)
                             raise ValueError
-                        try:
+                        try: # for spines display
                             matrix[0][0][idx] = switch
                             matrix[1][0][idx] = switch
                             matrix[2][0][idx] = switch
                             matrix[3][0][idx] = switch
+                            matrix[4][0][idx] = switch
+                            matrix[5][0][idx] = switch
 
                             #TODO update values difference
-                            matrix[0][rem_sw_nr*2-1][idx] = data['egress_rate']  # values for egress rate
-                            matrix[0][rem_sw_nr*2][idx] = data['ingress_rate']  # values for ingress rate
-                            matrix[1][rem_sw_nr * 2 - 1][idx] = data['rx_err']  # values for rx errors
-                            matrix[1][rem_sw_nr * 2][idx] = data['tx_err']  # values for tx errors
-                            matrix[2][rem_sw_nr * 2 - 1][idx] = data['rx_discard']  # values for rx discards
-                            matrix[2][rem_sw_nr * 2][idx] = data['tx_discard']  # values for tx discards
+                            matrix[0][rem_sw_nr * 2 - 1][idx] = data['egress_rate']  # values for egress rate
+                            matrix[0][rem_sw_nr * 2][idx] = data['ingress_rate']  # values for ingress rate
+
+                            matrix[1][rem_sw_nr * 2 - 1][idx] = data['rx_err'] - matrix[5][rem_sw_nr * 2 - 1][idx]  # values for rx errors
+                            matrix[1][rem_sw_nr * 2][idx] = data['tx_err'] - matrix[5][rem_sw_nr * 2][idx]   # values for tx errors
+
+                            matrix[2][rem_sw_nr * 2 - 1][idx] = data['rx_discard'] - matrix[4][rem_sw_nr * 2 - 1][idx]  # values for rx discards
+                            matrix[2][rem_sw_nr * 2][idx] = data['tx_discard'] - matrix[4][rem_sw_nr * 2][idx]  # values for tx discards
+
                             matrix[3][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
                             matrix[3][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
 
-                            matrix[0][rem_sw_nr*2-1][0] = 'L' + str(rem_sw_nr) + ' out'  # row headings for egress rate
-                            matrix[0][rem_sw_nr*2][0] = 'L' + str(rem_sw_nr) + ' in'  # row headings for ingress rate
+                            matrix[4][rem_sw_nr * 2 - 1][idx] = data['rx_discard']  # values for switch status
+                            matrix[4][rem_sw_nr * 2][idx] = data['tx_discard']  # values for switch status, same as above
+
+                            matrix[5][rem_sw_nr * 2 - 1][idx] = data['rx_err']  # values for switch status
+                            matrix[5][rem_sw_nr * 2][idx] = data['tx_err']  # values for switch status, same as above
+
+
+                            matrix[0][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'  # row headings for egress rate
+                            matrix[0][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'  # row headings for ingress rate
                             matrix[1][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx err'  # row headings for rx errors
                             matrix[1][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx err'  # row headings for tx errors
                             matrix[2][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx ds'  # row headings for rx discards
@@ -610,7 +624,7 @@ if __name__ == '__main__':
                             matrix[3][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status, same as above
 
                         #TODO add except TypeError
-                        except IndexError:
+                        except (IndexError, TypeError):
                             pass
                 else: # for leaves display
                     try:
@@ -620,6 +634,8 @@ if __name__ == '__main__':
                         matrix[1][0][idx] = switch
                         matrix[2][0][idx] = switch
                         matrix[3][0][idx] = switch
+                        matrix[4][0][idx] = switch
+                        matrix[5][0][idx] = switch
 
                         # matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
                         # matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
@@ -847,7 +863,7 @@ if __name__ == '__main__':
                                             if matrix[2][i][j] > 0:  # discards, set colour scheme
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             #if matrix[3][i][j] == 0 :  # switch status, set colour scheme
-                                            if time.time() - matrix[3][i][j] > 5:  # switch status, set colour scheme
+                                            if time.time() - matrix[3][i][j] > 8:  # switch status, set colour scheme
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=GREEN
 
                                             if (i - 1) % 2 == 1:
