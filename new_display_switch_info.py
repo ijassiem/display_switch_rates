@@ -395,7 +395,7 @@ if __name__ == '__main__':
         output += ('host    : ' + ssh_obj.hostname + '\n')
         output += ('command : ' + prn_cmd + '\n')
         status, outp = ssh_obj.run(cmd, indata, timeout=30)
-        #status, outp = ssh_obj.run(cmd, indata, timeout=1)
+        #status, outp = ssh_obj.run(cmd, indata, timeout=?)
         output += ('status  : %d' % (status) + '\n')
         output += ('output  : %d bytes' % (len(output)) + '\n')
         output += ('=' * 64 + '\n')
@@ -450,7 +450,7 @@ if __name__ == '__main__':
     def create_matrix(switch_dict, opts):
         mleaves = opts.maxleaves
         #cols = len(switch_dict.keys()) + 1  # length or number of elements in dictionary
-        cols = 36 + 1
+        #cols = 36 + 1
 
         if opts.display == 'spines':
             lines = mleaves * 2 + 1  # max 36 leaves, *2 for tx and rx
@@ -466,7 +466,7 @@ if __name__ == '__main__':
             #         except ValueError:
             #             port_list.append(port)
             # port_list = sorted(port_list, key=natural_keys)
-            # #lines = len(port_list) * 2 + 1
+            # lines = len(port_list) * 2 + 1
             lines = opts.numsw * 2 + 1
             cols = opts.maxleaves + 1
 
@@ -728,7 +728,7 @@ if __name__ == '__main__':
 
         curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # colour scheme for discards
         curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_RED)  # colour scheme for errors
-        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_CYAN)  # colour scheme for switch status
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_WHITE)  # colour scheme for switch status
 
         #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
@@ -851,9 +851,9 @@ if __name__ == '__main__':
                                                 disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             if time.time() - matrix[3][i][j] > 6:  # switch status, set colour scheme, no response in 6 sec
                                                 if opts.display == 'leaves':
-                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[k][0][j], colw), curses.A_REVERSE | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
+                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[k][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                                 elif opts.display == 'spines':
-                                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.A_REVERSE)  # 11=CYAN
+                                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
 
                                             if (i - 1) % 2 == 1:
                                                 disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
@@ -961,31 +961,12 @@ if __name__ == '__main__':
                 logger.error('Switch output malformed while mapping switches: {}'.format(output))
             _null = raw_input("Press any key to continue...")
     logger.info('Done mapping switches.')
+    test1 = len(switch_dict.keys())
     #IPython.embed()
 
-    ## Map switches:
-    # logger.info('Mapping switch connections using LLDP')
-    ## Create 3 level dictionary for switch info
-    # switch_dict = defaultdict(lambda: defaultdict( lambda: defaultdict(list)))
-    # cmd = 'show lldp interfaces ethernet remote | include "Eth|Remote system name"'
-    # all_output = run_threaded_cmd(ssh_list,cmd)
-    # for output in all_output:
-    #    sw_name_idx = [i for i,s in enumerate(output) if 'CBFSW' in s][0]
-    #    sw_name = output[sw_name_idx].split(' ')[0].split('-')[-1]
-    #    for line in output:
-    #        if line.startswith('Eth'):
-    #            eth = line
-    #        if line.startswith('Remote system'):
-    #            remote = line.split(' ')[-1]
-    #            switch_dict[sw_name][eth]['remote_switch'] = remote
-    # logger.info('Done mapping switches.')
     matrix = create_matrix(switch_dict, opts)
     matrix = get_discard(switch_dict, ssh_list, matrix)
     matrix = get_discard(switch_dict, ssh_list, matrix)
-    matrix = get_discard(switch_dict, ssh_list, matrix)
-    # matrix = get_discard(switch_dict, ssh_list, matrix)
-    #
-    # matrix = get_discard(switch_dict, ssh_list, matrix)
     # matrix = get_discard(switch_dict, ssh_list, matrix)
     # matrix = get_discard(switch_dict, ssh_list, matrix)
     curses.wrapper(draw, switch_dict, new_ssh_list, matrix)
