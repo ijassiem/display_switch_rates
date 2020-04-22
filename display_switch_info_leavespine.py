@@ -334,26 +334,49 @@ if __name__ == '__main__':
         username = 'monitor'
         password = 'monitor'
     sudo_password = password  # assume that it is the same password
-    hosts = []
+    #hosts = []
+    hosts_leaves = []
+    hosts_spines = []
+    hosts_all = []
     strsw = opts.startswitch
     numsw = opts.numsw
     mspines = opts.maxspines
     mleaves = opts.maxleaves
-    if opts.display == 'spines':
-        if strsw + numsw > mspines + 1:
-            rng = mspines + 1
-        else:
-            rng = strsw + numsw
+    # if opts.display == 'spines':
+    #     if strsw + numsw > mspines + 1:
+    #         rng = mspines + 1
+    #     else:
+    #         rng = strsw + numsw
+    #
+    #     for i in range(strsw, rng):
+    #         hosts.append('cbfsw-s{}.cbf.mkat.karoo.kat.ac.za'.format(i))
+    # else:
+    #     if strsw + numsw > mleaves + 1:
+    #         rng = mleaves + 1
+    #     else:
+    #         rng = strsw + numsw
+    #     for i in range(strsw, rng):
+    #         hosts.append('cbfsw-l{}.cbf.mkat.karoo.kat.ac.za'.format(i))
 
-        for i in range(strsw, rng):
-            hosts.append('cbfsw-s{}.cbf.mkat.karoo.kat.ac.za'.format(i))
+    ########################################
+
+    if strsw + numsw > mleaves + 1:
+        rng = mleaves + 1
     else:
-        if strsw + numsw > mleaves + 1:
-            rng = mleaves + 1
-        else:
-            rng = strsw + numsw
-        for i in range(strsw, rng):
-            hosts.append('cbfsw-l{}.cbf.mkat.karoo.kat.ac.za'.format(i))
+        rng = strsw + numsw
+    for i in range(strsw, rng):
+        hosts_leaves.append('cbfsw-l{}.cbf.mkat.karoo.kat.ac.za'.format(i))
+
+    if strsw + numsw > mspines + 1:
+        rng = mspines + 1
+    else:
+        rng = strsw + numsw
+    for i in range(strsw, rng):
+        hosts_spines.append('cbfsw-s{}.cbf.mkat.karoo.kat.ac.za'.format(i))
+
+    hosts_all = hosts_leaves + hosts_spines
+
+    ########################################+
 
 
     def ssh_conn(hostname):
@@ -471,7 +494,7 @@ if __name__ == '__main__':
             cols = opts.maxleaves + 1
 
         matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
-                  range(6)]  # creates matrix, a 3-D list of zeros, lines x cols
+                  range(13)]  # creates matrix, a 3-D list of zeros, lines x cols
         #IPython.embed()
         return matrix
 
@@ -564,69 +587,75 @@ if __name__ == '__main__':
 
         try:
             sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
+            sorted_leaves = ['L'+str(x) for x in range(1,37)]
+            sorted_spines = ['S'+str(x) for x in range(1,19)]
+            # sorted_leaves = [x for x in sorted_swlist if x.startswith('L')]
+            # sorted_spines = [x for x in sorted_swlist if x.startswith('S')]
             first_sw = int(natural_keys(sorted_swlist[0])[-2])  # extracts 1 from 'L1' and casts to int
+            #IPython.embed()
         except (ValueError, IndexError):
             logger.error('Switch name not end in a number: {}'.format(first_sw))
             close_ssh(ssh_list)
             raise ValueError
 
         for switch in switch_dict.keys(): # ['L1','L2','L3'.....]
-            idx = sorted_swlist.index(switch) + 1  # gets value of index of 'L1' for example
+            if switch.startswith('L'):
+                #idx = sorted_swlist.index(switch) + 1  # gets value of index of 'L1' for example
+                idx = sorted_leaves.index(switch) + 1  # gets value of index of 'L1' for example
 
-            for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Lx'
-                if opts.display == 'spines': # for spines display
-                    if data.has_key('remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
-                        rem_sw = re.split('(\d+)', data['remote_switch'])
-
-                        try:
-                            rem_sw_nr = int(rem_sw[-2])
-
-                        except (ValueError, IndexError):
-                            logger.error('Remote switch name from LLDP does not end in a number: {}'.format(
-                                data['remote_switch']))
-                            close_ssh(ssh_list)
-                            raise ValueError
-                        try: # for spines display
-                            matrix[0][0][idx] = switch
-                            matrix[1][0][idx] = switch
-                            matrix[2][0][idx] = switch
-                            matrix[3][0][idx] = switch
-                            matrix[4][0][idx] = switch
-                            matrix[5][0][idx] = switch
-
-                            #TODO update values difference
-                            matrix[0][rem_sw_nr * 2 - 1][idx] = data['egress_rate']  # values for egress rate
-                            matrix[0][rem_sw_nr * 2][idx] = data['ingress_rate']  # values for ingress rate
-
-                            matrix[1][rem_sw_nr * 2 - 1][idx] = data['rx_err'] - matrix[5][rem_sw_nr * 2 - 1][idx]  # values for rx errors
-                            matrix[1][rem_sw_nr * 2][idx] = data['tx_err'] - matrix[5][rem_sw_nr * 2][idx]   # values for tx errors
-
-                            matrix[2][rem_sw_nr * 2 - 1][idx] = data['rx_discard'] - matrix[4][rem_sw_nr * 2 - 1][idx]  # values for rx discards
-                            matrix[2][rem_sw_nr * 2][idx] = data['tx_discard'] - matrix[4][rem_sw_nr * 2][idx]  # values for tx discards
-
-                            matrix[3][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
-                            matrix[3][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
-
-                            matrix[4][rem_sw_nr * 2 - 1][idx] = data['rx_discard']  # values for switch status
-                            matrix[4][rem_sw_nr * 2][idx] = data['tx_discard']  # values for switch status, same as above
-
-                            matrix[5][rem_sw_nr * 2 - 1][idx] = data['rx_err']  # values for switch status
-                            matrix[5][rem_sw_nr * 2][idx] = data['tx_err']  # values for switch status, same as above
-
-
-                            matrix[0][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'  # row headings for egress rate
-                            matrix[0][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'  # row headings for ingress rate
-                            matrix[1][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx err'  # row headings for rx errors
-                            matrix[1][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx err'  # row headings for tx errors
-                            matrix[2][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx ds'  # row headings for rx discards
-                            matrix[2][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx ds'  # row headings for tx discards
-                            matrix[3][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status
-                            matrix[3][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status, same as above
-
-                        #TODO add except TypeError
-                        except (IndexError, TypeError):
-                            pass
-                else: # for leaves display
+                for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Lx'
+                    # if opts.display == 'spines': # for spines display
+                    #     if data.has_key('remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
+                    #         rem_sw = re.split('(\d+)', data['remote_switch'])
+                    #
+                    #         try:
+                    #             rem_sw_nr = int(rem_sw[-2])
+                    #
+                    #         except (ValueError, IndexError):
+                    #             logger.error('Remote switch name from LLDP does not end in a number: {}'.format(
+                    #                 data['remote_switch']))
+                    #             close_ssh(ssh_list)
+                    #             raise ValueError
+                    #
+                    #         try: # for spines display
+                    #             matrix[0][0][idx] = switch
+                    #             matrix[1][0][idx] = switch
+                    #             matrix[2][0][idx] = switch
+                    #             matrix[3][0][idx] = switch
+                    #             matrix[4][0][idx] = switch
+                    #             matrix[5][0][idx] = switch
+                    #
+                    #             #TODO update values difference
+                    #             matrix[0][rem_sw_nr * 2 - 1][idx] = data['egress_rate']  # values for egress rate
+                    #             matrix[0][rem_sw_nr * 2][idx] = data['ingress_rate']  # values for ingress rate
+                    #
+                    #             matrix[1][rem_sw_nr * 2 - 1][idx] = data['rx_err'] - matrix[5][rem_sw_nr * 2 - 1][idx]  # values for rx errors
+                    #             matrix[1][rem_sw_nr * 2][idx] = data['tx_err'] - matrix[5][rem_sw_nr * 2][idx]   # values for tx errors
+                    #
+                    #             matrix[2][rem_sw_nr * 2 - 1][idx] = data['rx_discard'] - matrix[4][rem_sw_nr * 2 - 1][idx]  # values for rx discards
+                    #             matrix[2][rem_sw_nr * 2][idx] = data['tx_discard'] - matrix[4][rem_sw_nr * 2][idx]  # values for tx discards
+                    #
+                    #             matrix[3][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
+                    #             matrix[3][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
+                    #
+                    #             matrix[4][rem_sw_nr * 2 - 1][idx] = data['rx_discard']  # values for switch status
+                    #             matrix[4][rem_sw_nr * 2][idx] = data['tx_discard']  # values for switch status, same as above
+                    #
+                    #             matrix[5][rem_sw_nr * 2 - 1][idx] = data['rx_err']  # values for switch status
+                    #             matrix[5][rem_sw_nr * 2][idx] = data['tx_err']  # values for switch status, same as above
+                    #
+                    #             matrix[0][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'  # row headings for egress rate
+                    #             matrix[0][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'  # row headings for ingress rate
+                    #             matrix[1][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx err'  # row headings for rx errors
+                    #             matrix[1][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx err'  # row headings for tx errors
+                    #             matrix[2][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' rx ds'  # row headings for rx discards
+                    #             matrix[2][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' tx ds'  # row headings for tx discards
+                    #             matrix[3][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status
+                    #             matrix[3][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'  # row headings for switch status, same as above
+                    #
+                    #         except (IndexError, TypeError):
+                    #             pass
+                    # else: # for leaves display
                     try:
                         port_idx = port_list.index(port) + 1
 
@@ -637,54 +666,170 @@ if __name__ == '__main__':
                         matrix[4][0][idx] = switch
                         matrix[5][0][idx] = switch
 
-                        # matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
-                        # matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
-                        # matrix[1][port_idx * 2 - 1][idx] = data['rx_err']  # values for rx errors
-                        # matrix[1][port_idx * 2][idx] = data['tx_err']  # values for tx errors
-                        # matrix[2][port_idx * 2 - 1][idx] = data['rx_discard']  # values for rx discards
-                        # matrix[2][port_idx * 2][idx] = data['tx_discard']  # values for tx discards
-                        # matrix[3][port_idx * 2 - 1][idx] = data['sw_status']  # values for switch status
-                        # matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status, same as above
-
-
                         ##for testing above code
                         matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
                         matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
 
                         matrix[1][port_idx * 2 - 1][idx] = data['rx_err'] - matrix[5][port_idx * 2 - 1][idx]  # values for current rx errors minus prev
                         matrix[1][port_idx * 2][idx] = data['tx_err'] - matrix[5][port_idx * 2][idx]  # values for current tx errors minus prev
-                        # matrix[1][port_idx * 2 - 1][idx] = data['rx_err']
-                        # matrix[1][port_idx * 2][idx] = data['tx_err']
 
                         matrix[2][port_idx * 2 - 1][idx] = data['rx_discard'] - matrix[4][port_idx * 2 - 1][idx] # values for current minus prev rx discards
                         matrix[2][port_idx * 2][idx] = data['tx_discard'] - matrix[4][port_idx * 2][idx]  # values for current minus prev tx discards
-                        # matrix[2][port_idx * 2 - 1][idx] = data['rx_discard']  # values for rx discards
-                        # matrix[2][port_idx * 2][idx] = data['tx_discard']  # values for tx discards
 
                         matrix[3][port_idx * 2 - 1][idx] = data['sw_status']   # values for switch status
                         matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status same as above
-                        #IPython.embed()
+
                         matrix[4][port_idx * 2 - 1][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[4]
                         matrix[4][port_idx * 2][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[4]
 
                         matrix[5][port_idx * 2 - 1][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[5]
                         matrix[5][port_idx * 2][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[5]
-                        ##for testing above code
-
 
                         matrix[0][port_idx * 2 - 1][0] = port[3:] + ' out'  # remove Eth, include 1/17#
                         matrix[0][port_idx * 2][0] = port[3:] + ' in'  # remove Eth, include 1/17#
+                        ###########################################################
+                        if port[3:] == '1/19':
+                            matrix[0][port_idx * 2 - 1][0] = '1/19->S1'
+                        elif port[3:] == '1/20':
+                            matrix[0][port_idx * 2 - 1][0] = '1/20->S2'
+                        elif port[3:] == '1/21':
+                            matrix[0][port_idx * 2 - 1][0] = '1/21->S3'
+                        elif port[3:] == '1/22':
+                            matrix[0][port_idx * 2 - 1][0] = '1/22->S4'
+                        elif port[3:] == '1/23':
+                            matrix[0][port_idx * 2 - 1][0] = '1/23->S5'
+                        elif port[3:] == '1/24':
+                            matrix[0][port_idx * 2 - 1][0] = '1/24->S6'
+                        elif port[3:] == '1/25':
+                            matrix[0][port_idx * 2 - 1][0] = '1/25->S7'
+                        elif port[3:] == '1/26':
+                            matrix[0][port_idx * 2 - 1][0] = '1/26->S8'
+                        elif port[3:] == '1/27':
+                            matrix[0][port_idx * 2 - 1][0] = '1/27->S9'
+                        elif port[3:] == '1/28':
+                            matrix[0][port_idx * 2 - 1][0] = '1/28->S10'
+                        elif port[3:] == '1/29':
+                            matrix[0][port_idx * 2 - 1][0] = '1/29->S11'
+                        elif port[3:] == '1/30':
+                            matrix[0][port_idx * 2 - 1][0] = '1/30->S12'
+                        elif port[3:] == '1/31':
+                            matrix[0][port_idx * 2 - 1][0] = '1/31->S13'
+                        elif port[3:] == '1/32':
+                            matrix[0][port_idx * 2 - 1][0] = '1/32->S14'
+                        elif port[3:] == '1/33':
+                            matrix[0][port_idx * 2 - 1][0] = '1/33->S15'
+                        elif port[3:] == '1/34':
+                            matrix[0][port_idx * 2 - 1][0] = '1/34->S16'
+                        elif port[3:] == '1/35':
+                            matrix[0][port_idx * 2 - 1][0] = '1/35->S17'
+                        elif port[3:] == '1/36':
+                            matrix[0][port_idx * 2 - 1][0] = '1/36->S18'
+                        #TODO add code for S10 - S19
+                        ###########################################################
                         matrix[1][port_idx * 2 - 1][0] = port[3:] + ' rx err'  # remove Eth, include 1/17#
                         matrix[1][port_idx * 2][0] = port[3:] + ' tx err'  # remove Eth, include 1/17#
                         matrix[2][port_idx * 2 - 1][0] = port[3:] + ' rx ds'  # row headings for rx discards
                         matrix[2][port_idx * 2][0] = port[3:] + ' tx ds'  # row headings for tx discards
                         matrix[3][port_idx * 2 - 1][0] = port[3:] + ' sw st'  # row headings for switch status
                         matrix[3][port_idx * 2][0] = port[3:] + ' sw st'  # row headings for switch status, same as above
+                        matrix[4][port_idx * 2 - 1][0] = port[3:] + ' prev rx ds'  # row headings for switch status
+                        matrix[4][port_idx * 2][0] = port[3:] + ' prev tx ds'  # row headings for switch status, same as above
+                        matrix[5][port_idx * 2 - 1][0] = port[3:] + ' prev rx err'  # row headings for switch status
+                        matrix[5][port_idx * 2][0] = port[3:] + ' prev tx err'  # row headings for switch status, same as above
 
                     #except IndexError:
                     except (IndexError, TypeError):
                         pass
 
+                ######################################################################
+                #TODO populate matrix[6] with spines data. create_matrix with new size
+                ######################################################################
+        for switch in switch_dict.keys():  # ['L1','L2','L3'.....]
+            if switch.startswith('S'):
+                #idx = sorted_swlist.index(switch) + 1  # gets value of index of 'L1' for example
+                idx = sorted_spines.index(switch) + 1  # gets value of index of 'L1' for example
+
+                for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Lx'
+                    #if opts.display == 'spines':  # for spines display
+                    if data.has_key(
+                            'remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
+                        rem_sw = re.split('(\d+)', data['remote_switch']) #seperate number/digit and return list
+
+                        try:
+                            rem_sw_nr = int(rem_sw[-2])
+
+                        except (ValueError, IndexError):
+                            logger.error('Remote switch name from LLDP does not end in a number: {}'.format(
+                                data['remote_switch']))
+                            close_ssh(ssh_list)
+                            raise ValueError
+                        #TODO add rates, errors, discards etc. for spines
+                        try:  # for spines display
+                            matrix[6][0][idx] = switch
+                            matrix[7][0][idx] = switch
+                            matrix[8][0][idx] = switch
+                            matrix[9][0][idx] = switch
+                            matrix[10][0][idx] = switch
+                            matrix[11][0][idx] = switch
+
+                            matrix[6][rem_sw_nr * 2 - 1][idx] = data['ingress_rate']  # values for ingress rate
+                            matrix[6][rem_sw_nr * 2][idx] = data['egress_rate']  # values for egress rate
+
+                            matrix[7][rem_sw_nr * 2 - 1][idx] = data['tx_err'] - matrix[11][rem_sw_nr * 2 - 1][idx]  # values for current tx errors minus prev
+                            matrix[7][rem_sw_nr * 2][idx] = data['rx_err'] - matrix[11][rem_sw_nr * 2][idx]  # values for current rx errors minus prev
+
+                            matrix[8][rem_sw_nr * 2 - 1][idx] = data['tx_discard'] - matrix[10][rem_sw_nr * 2 - 1][idx]  # values for current minus prev tx discards
+                            matrix[8][rem_sw_nr * 2][idx] = data['rx_discard'] - matrix[10][rem_sw_nr * 2][idx]  # values for current minus prev rx discards
+
+                            matrix[9][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
+                            matrix[9][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
+
+                            matrix[10][rem_sw_nr * 2 - 1][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[10]
+                            matrix[10][rem_sw_nr * 2][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[10]
+
+                            matrix[11][rem_sw_nr * 2 - 1][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[11]
+                            matrix[11][rem_sw_nr * 2][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[11]
+
+                            #############################
+
+                            matrix[6][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'
+                            matrix[6][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'
+                            matrix[7][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx err'
+                            matrix[7][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx err'
+                            matrix[8][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx ds'
+                            matrix[8][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx ds'
+                            matrix[9][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'
+                            matrix[9][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'
+                            matrix[10][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx ds'
+                            matrix[10][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx ds'
+                            matrix[11][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx err'
+                            matrix[11][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx err'
+
+                        except (IndexError, TypeError):
+                            pass
+                    # else:  # for leaves display
+                    #     try:
+                    #         port_idx = port_list.index(port) + 1
+                    #
+                    #         matrix[6][0][idx] = switch  # switch is a key value in switch_dict eg.L1
+                    #
+                    #         matrix[6][port_idx * 2 - 1][idx] = data['sw_status']  # values for switch status
+                    #         matrix[6][port_idx * 2][idx] = data['sw_status']  # values for switch status same as above
+                    #
+                    #         matrix[6][port_idx * 2 - 1][0] = port[3:] + ' sw st'  # row headings for switch status
+                    #         matrix[6][port_idx * 2][0] = port[3:] + ' sw st'  # row headings for switch status, same as above
+                    #
+                    #     # except IndexError:
+                    #     except (IndexError, TypeError):
+                    #         pass
+                ######################################################################
+
+        matrix[12] = [row[:] for row in matrix[0]]  # copy leave rates info from matrix[0] to matrix[12]
+        for i in range(37, 72, 2):  # odd row numbers 37 - 71. spine ingress rates in matrix[6]
+            for j in range(len(matrix[0][0])):
+                if j > 0:
+                    matrix[12][i][j] = matrix[6][i][j] # copy spine info to matrix[12]
+                    #matrix[12][i][j] = 786 # testing
         return matrix
 
 
@@ -773,94 +918,128 @@ if __name__ == '__main__':
                     thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list, matrix))
                     blankc = 0
                     reverse = False
-                    for k, page in enumerate(matrix):
-                        if k == 0:
-                            for i, row in enumerate(page):
-                                if i == 0: # row 0 or line 0
-                                    for j, val in enumerate(row):
-                                        if val == 0:
-                                            val = 'N/C'
-                                        if j == 0:
-                                            pass
-                                        else:
-                                            col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
-
+                    # for k, page in enumerate(matrix):
+                    #     if k == 0:
+                    for i, row in enumerate(matrix[12]):
+                        if i == 0: # row 0 or line 0
+                            for j, val in enumerate(row):
+                                if val == 0:
+                                    val = 'N/C'
+                                if j == 0:
+                                    pass
                                 else:
-                                    for j, val in enumerate(row):
-                                        if j == 0: # for first title row in display
-                                            if val == 0:
-                                                val = 'N/C'
-                                            col_pair = 1
+                                    col_title.addstr(i, (j - 1) * colw, '{0:>{1}}'.format(val, colw), curses.A_BOLD | curses.A_UNDERLINE)
+
+                        else:
+                            for j, val in enumerate(row):
+                                if j == 0: # for first title row in display
+                                    if val == 0:
+                                        val = 'N/C'
+                                    col_pair = 1
+                                    if reverse: col_pair += 1
+                                    row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD)  # displays 1/1 out located in left-most column (column 0)
+                                    #########################################################################
+                                    # if matrix[7][i][j] > 0 : # spines errors, set color for row heading
+                                    #     row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(11) | curses.A_BOLD)
+                                    # else:
+                                    #     row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
+                                    #########################################################################
+                                    if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
+                                        row_title.addstr(i + blankc - 1 + 1, 0, ' ') #@
+                                else:  # for rows following first title row ^
+                                    width = colw - 2
+                                    if not val:
+                                        val = 0
+                                    man = fman(val)
+                                    exp = fexp(val)
+                                    if exp < 3:
+                                        col_pair = 1
+                                        if reverse: col_pair += 1
+                                        rate = 'Bs'
+                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+                                    elif exp < 6:
+                                        col_pair = 1
+                                        if reverse: col_pair += 1
+                                        rate = 'KB'
+                                        man *= 10 ** (exp - 3)
+                                        man = man.normalize()
+                                        if width - 8 < 0:
+                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                        else:
+                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    elif exp < 9:
+                                        col_pair = 3
+                                        if reverse: col_pair += 1
+                                        rate = 'MB'
+                                        man *= 10 ** (exp - 6)
+                                        man = man.normalize()
+                                        if width - 8 < 0:
+                                            val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
+                                        else:
+                                            val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    elif exp < 12:
+                                        if man > 4.8:
+                                            col_pair = 7
                                             if reverse: col_pair += 1
-                                            row_title.addstr(i + blankc - 1, 0, val, curses.color_pair(col_pair) | curses.A_BOLD) # displays 1/1 out located in left-most column (column 0)
-                                            if (i - 1) % 2 == 1: # all even numbers eg 2,4,6,8,...
-                                                row_title.addstr(i + blankc - 1 + 1, 0, ' ') #@
-                                        else:  # for rows following first title row ^
-                                            width = colw - 2
-                                            if not val:
-                                                val = 0
-                                            man = fman(val)
-                                            exp = fexp(val)
-                                            if exp < 3:
-                                                col_pair = 1
-                                                if reverse: col_pair += 1
-                                                rate = 'Bs'
-                                                val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
-                                            elif exp < 6:
-                                                col_pair = 1
-                                                if reverse: col_pair += 1
-                                                rate = 'KB'
-                                                man *= 10 ** (exp - 3)
-                                                man = man.normalize()
-                                                if width - 8 < 0:
-                                                    val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
-                                                else:
-                                                    val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-                                            elif exp < 9:
-                                                col_pair = 3
-                                                if reverse: col_pair += 1
-                                                rate = 'MB'
-                                                man *= 10 ** (exp - 6)
-                                                man = man.normalize()
-                                                if width - 8 < 0:
-                                                    val = '{0:>{1}} {2}'.format(int(man), width - 1, rate)
-                                                else:
-                                                    val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-                                            elif exp < 12:
-                                                if man > 4.8:
-                                                    col_pair = 7
-                                                    if reverse: col_pair += 1
-                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
-                                                    row_title.addstr(i + blankc - 1, 0, matrix[i][0],curses.color_pair(col_pair) | curses.A_BOLD)
-                                                else:
-                                                    col_pair = 5
-                                                    if reverse: col_pair += 1
-                                                rate = 'GB'
-                                                man *= 10 ** (exp - 9)
-                                                man = man.normalize()
-                                                val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
-                                            else:
-                                                col_pair = 1
-                                                rate = 'Bs'
-                                                val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[12][0][j], colw),curses.color_pair(col_pair) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0],curses.color_pair(col_pair) | curses.A_BOLD)
+                                        else:
+                                            col_pair = 5
+                                            if reverse: col_pair += 1
+                                        rate = 'GB'
+                                        man *= 10 ** (exp - 9)
+                                        man = man.normalize()
+                                        val = '{0:{1}.1f} {2}'.format(man, width - 1, rate)
+                                    else:
+                                        col_pair = 1
+                                        rate = 'Bs'
+                                        val = '{0:>{1}} {2}'.format(int(val), width - 1, rate)
 
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))  # default colour scheme
-                                            if matrix[1][i][j] > 0:  # errors, set colour scheme
-                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
-                                            if matrix[2][i][j] > 0:  # discards, set colour scheme
-                                                disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
-                                            if time.time() - matrix[3][i][j] > 6:  # switch status, set colour scheme, no response in 6 sec
-                                                if opts.display == 'leaves':
-                                                    col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[k][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
-                                                elif opts.display == 'spines':
-                                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
+                                    disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(col_pair))  # default colour scheme
+                                    if 0 < i < 37 :
+                                        if matrix[1][i][j] > 0:  # leaves errors, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw,'{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                        if matrix[2][i][j] > 0:  # leaves discards, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw,'{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                    if i in range(38, 73, 2):
+                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # leaves and spines errors, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # leaves and spines discards, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                    if i in range(37, 72, 2):
+                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # spines discards, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                    if 0 < i < 37 or i in range(38, 73, 2):
+                                        if time.time() - matrix[3][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
+                                            #row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
+                                    if i in range(37, 72, 2):
+                                        if time.time() - matrix[9][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
+                                            #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
 
-                                            if (i - 1) % 2 == 1:
-                                                disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
-                                    if (i-1)%2 == 1:
-                                        blankc += 1
-                                        reverse = False  # not(reverse)
-                            ###prev_matrix = matrix # excluded in rates code
+                                    if (i - 1) % 2 == 1:
+                                        disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
+                            if (i-1)%2 == 1:
+                                blankc += 1
+                                reverse = False  # not(reverse)
+                    ###prev_matrix = matrix # excluded in rates code
                 else:
                     char = stdscr.getch()
                     if char == curses.ERR:
@@ -914,12 +1093,12 @@ if __name__ == '__main__':
     # Main Code
     # Open SSH connections to all hosts
     full_ssh_list = []
-    thread_obj = [0] * len(hosts) # [0,0,0,0,0,0.....]
-    pool = ThreadPool(processes=len(hosts))
+    thread_obj = [0] * len(hosts_all) # [0,0,0,0,0,0.....]
+    pool = ThreadPool(processes=len(hosts_all))
     logger.info('Opening ssh connections.')
-    for i, host in enumerate(hosts):
+    for i, host in enumerate(hosts_all):
         thread_obj[i] = pool.apply_async(ssh_conn, args=(host,))
-    for i, host in enumerate(hosts):
+    for i, host in enumerate(hosts_all):
         full_ssh_list.append(thread_obj[i].get()) # append ssh_conn returned objects to full_ssh_list
     pool.close()
     pool.join()
