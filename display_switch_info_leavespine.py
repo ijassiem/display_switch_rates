@@ -494,7 +494,7 @@ if __name__ == '__main__':
             cols = opts.maxleaves + 1
 
         matrix = [[[0 for x in range(cols)] for y in range(lines)] for z in
-                  range(13)]  # creates matrix, a 3-D list of zeros, lines x cols
+                  range(16)]  # creates matrix, a 3-D list of zeros, lines x cols
         #IPython.embed()
         return matrix
 
@@ -775,9 +775,6 @@ if __name__ == '__main__':
                             matrix[6][rem_sw_nr * 2 - 1][idx] = data['ingress_rate']  # values for ingress rate
                             matrix[6][rem_sw_nr * 2][idx] = data['egress_rate']  # values for egress rate
 
-                            # matrix[6][rem_sw_nr * 2 - 1][idx] = 'ingress_rate'  # values for ingress rate
-                            # matrix[6][rem_sw_nr * 2][idx] = 'egress_rate'  # values for egress rate
-
                             matrix[7][rem_sw_nr * 2 - 1][idx] = data['tx_err'] - matrix[11][rem_sw_nr * 2 - 1][idx]  # values for current tx errors minus prev
                             matrix[7][rem_sw_nr * 2][idx] = data['rx_err'] - matrix[11][rem_sw_nr * 2][idx]  # values for current rx errors minus prev
 
@@ -825,15 +822,46 @@ if __name__ == '__main__':
                     #     # except IndexError:
                     #     except (IndexError, TypeError):
                     #         pass
-                ######################################################################
 
+        ######################################################################
+        #inserting spine rates data with leave rates data into matrix[12]
         matrix[12] = [row[:] for row in matrix[0]]  # create matrix[12], a copy of matrix[0] (leaves rates)
 
-        spine_column = [[value[column] for row, value in enumerate(matrix[6]) if row % 2 == 1 ] for column in range(1, 19)]
+        spine_rates = [[value[column] for row, value in enumerate(matrix[6]) if row%2==1] for column in range(1, 19)]
         # extract spine column ingress data from matrix[6] and store as rows in spine_column 2D matrix
 
         for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
-            matrix[12][b][1:1+len(spine_column[a])] = spine_column[a]  # insert spines column data into matrix[12] rows 37 to 72
+            matrix[12][b][1:1+len(spine_rates[a])] = spine_rates[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+        ############################################################################
+        # inserting spine errors data with leave errors data into matrix[13]
+        matrix[13] = [row[:] for row in matrix[1]]  # create matrix[13], a copy of matrix[1] (leaves errors)
+
+        spine_errors = [[value[column] for row, value in enumerate(matrix[7]) if row>0 and row%2==0] for column in range(1, 19)]
+        # extract spine column rx discards from matrix[6] and store as rows in spine_column 2D matrix
+
+        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+            matrix[13][b][1:1+len(spine_errors[a])] = spine_errors[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+        ######################################################################
+        # inserting spine discards data with leave discards data into matrix[14]
+        matrix[14] = [row[:] for row in matrix[2]]  # create matrix[14], a copy of matrix[2] (leaves discards)
+
+        spine_discards = [[value[column] for row, value in enumerate(matrix[8]) if row>0 and row%2==0] for column in range(1, 19)]
+        # extract spine column rx errors from matrix[6] and store as rows in spine_column 2D matrix
+
+        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+            matrix[14][b][1:1 + len(spine_discards[a])] = spine_discards[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+        ######################################################################
+        # inserting spine switch status with leave switch status into matrix[15]
+        matrix[15] = [row[:] for row in matrix[3]]  # create matrix[15], a copy of matrix[3] (leaves status)
+
+        spine_status = [[value[column] for row, value in enumerate(matrix[9]) if row>0 and row%2==0] for column in range(1, 19)]
+        # extract spine column switch status from matrix[6] and store as rows in spine_column 2D matrix
+
+        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+            matrix[15][b][1:1+len(spine_status[a])] = spine_status[a]  # insert spines column data into matrix[12] rows 37 to 72
 
         return matrix
 
@@ -1012,20 +1040,24 @@ if __name__ == '__main__':
                                             col_title.addstr(0, (j - 1) * colw,'{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
                                     if i in range(38, 73, 2):
-                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # leaves and spines errors, set colour for cell in display window
+                                        #if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # leaves and spines errors, set colour for cell in display window
+                                        if matrix[1][i][j] > 0:
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
-                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # leaves and spines discards, set colour for cell in display window
+                                        # if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # leaves and spines discards, set colour for cell in display window
+                                        if matrix[2][i][j] > 0:
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
                                     if i in range(37, 72, 2):
-                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # spines errors, set colour for cell in display window
+                                        # if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # spines errors, set colour for cell in display window
+                                        if matrix[13][i][j] > 0:
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
-                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # spines discards, set colour for cell in display window
+                                        # if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # spines discards, set colour for cell in display window
+                                        if matrix[14][i][j] > 0:
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
@@ -1035,7 +1067,7 @@ if __name__ == '__main__':
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                             #row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
                                     if i in range(37, 72, 2):
-                                        if time.time() - matrix[9][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
+                                        if time.time() - matrix[15][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(12))  # 12=GREEN
                                             #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(12) | curses.A_BOLD)
