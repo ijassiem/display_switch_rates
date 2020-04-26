@@ -775,6 +775,9 @@ if __name__ == '__main__':
                             matrix[6][rem_sw_nr * 2 - 1][idx] = data['ingress_rate']  # values for ingress rate
                             matrix[6][rem_sw_nr * 2][idx] = data['egress_rate']  # values for egress rate
 
+                            # matrix[6][rem_sw_nr * 2 - 1][idx] = 'ingress_rate'  # values for ingress rate
+                            # matrix[6][rem_sw_nr * 2][idx] = 'egress_rate'  # values for egress rate
+
                             matrix[7][rem_sw_nr * 2 - 1][idx] = data['tx_err'] - matrix[11][rem_sw_nr * 2 - 1][idx]  # values for current tx errors minus prev
                             matrix[7][rem_sw_nr * 2][idx] = data['rx_err'] - matrix[11][rem_sw_nr * 2][idx]  # values for current rx errors minus prev
 
@@ -824,12 +827,14 @@ if __name__ == '__main__':
                     #         pass
                 ######################################################################
 
-        matrix[12] = [row[:] for row in matrix[0]]  # copy leave rates info from matrix[0] to matrix[12]
-        for i in range(37, 72, 2):  # odd row numbers 37 - 71. spine ingress rates in matrix[6]
-            for j in range(len(matrix[0][0])):
-                if j > 0:
-                    matrix[12][i][j] = matrix[6][i][j] # copy spine info to matrix[12]
-                    #matrix[12][i][j] = 786 # testing
+        matrix[12] = [row[:] for row in matrix[0]]  # create matrix[12], a copy of matrix[0] (leaves rates)
+
+        spine_column = [[value[column] for row, value in enumerate(matrix[6]) if row % 2 == 1 ] for column in range(1, 19)]
+        # extract spine column ingress data from matrix[6] and store as rows in spine_column 2D matrix
+
+        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+            matrix[12][b][1:1+len(spine_column[a])] = spine_column[a]  # insert spines column data into matrix[12] rows 37 to 72
+
         return matrix
 
 
@@ -873,7 +878,8 @@ if __name__ == '__main__':
 
         curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # colour scheme for discards
         curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_RED)  # colour scheme for errors
-        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_WHITE)  # colour scheme for switch status
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_WHITE)  # colour scheme for switch status.
+        curses.init_pair(12, curses.COLOR_BLACK, curses.COLOR_GREEN)  #
 
         #curses.newpad(nlines, ncols)
         col_title = curses.newpad(1, m_cols * colw)
@@ -1002,27 +1008,27 @@ if __name__ == '__main__':
                                             col_title.addstr(0, (j - 1) * colw,'{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
                                         if matrix[2][i][j] > 0:  # leaves discards, set colour for cell in display window
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             col_title.addstr(0, (j - 1) * colw,'{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
-                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
                                     if i in range(38, 73, 2):
                                         if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # leaves and spines errors, set colour for cell in display window
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
                                         if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # leaves and spines discards, set colour for cell in display window
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
-                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
                                     if i in range(37, 72, 2):
-                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # spines discards, set colour for cell in display window
+                                        if matrix[1][i][j] > 0 or matrix[7][i][j] > 0:  # spines errors, set colour for cell in display window
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
                                             col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
                                             row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
-                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(10))  # 10=RED
-                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(10) | curses.A_BOLD | curses.A_UNDERLINE)
-                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(10) | curses.A_BOLD)
+                                        if matrix[2][i][j] > 0 or matrix[8][i][j] > 0:  # spines discards, set colour for cell in display window
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(9))  # 9=YELLOW
+                                            col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(9) | curses.A_BOLD | curses.A_UNDERLINE)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(9) | curses.A_BOLD)
                                     if 0 < i < 37 or i in range(38, 73, 2):
                                         if time.time() - matrix[3][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
                                             disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
@@ -1030,9 +1036,9 @@ if __name__ == '__main__':
                                             #row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
                                     if i in range(37, 72, 2):
                                         if time.time() - matrix[9][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(11))  # 11=WHITE
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(12))  # 12=GREEN
                                             #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
-                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
+                                            row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(12) | curses.A_BOLD)
 
                                     if (i - 1) % 2 == 1:
                                         disp_wind.addstr(i + blankc - 1 + 1, (j - 1) * colw, ' ')
