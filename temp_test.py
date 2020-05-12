@@ -921,7 +921,7 @@ if __name__ == '__main__':
 
                                     if i in range(37, 72, 2):  # for egress to spine ports 1/19 - 1/36
                                         if time.time() - matrix[15][i][j] > 10:  # switch status, set colour scheme, no response in 6 sec
-                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(1) | curses.A_DIM)  # 11=WHITE text for no switch reply
+                                            disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(1) | curses.A_BOLD)  # 11=WHITE text for no switch reply
                                             #col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(1) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                             #row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(1) | curses.A_BOLD)
 
