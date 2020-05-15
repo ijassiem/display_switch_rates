@@ -916,6 +916,7 @@ if __name__ == '__main__':
 
     try:
         thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
+        thread1.setDaemon(True)
         #thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
         #thread1.start()
         print 'Server started...\nPress ctrl+c to exit'

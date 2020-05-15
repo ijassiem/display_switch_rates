@@ -13,8 +13,9 @@ HEADERSIZE = 10
 IPV4 = socket.AF_INET
 TCP = socket.SOCK_STREAM
 PORT = 1234
-# IPADDRESS = 'dbelab04'
-IPADDRESS = 'localhost'  # localhost or 127.0.0.1
+#IPADDRESS = 'dbelab04'
+IPADDRESS = 'cmc3.cbf.mkat.karoo.kat.ac.za'
+#IPADDRESS = 'localhost'  # localhost or 127.0.0.1
 
 ####### FUNCTIONS #######
 
