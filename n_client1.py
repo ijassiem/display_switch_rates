@@ -34,7 +34,7 @@ handler.setFormatter(logging_format)
 handler.setLevel(level)
 logger.addHandler(handler)
 
-####### FUNCTIONS #######
+####### FUNCTIONS #########
 
 def draw(stdscr, shared_dict):
     from decimal import Decimal

@@ -729,7 +729,7 @@ if __name__ == '__main__':
         for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
             matrix[13][b][1:1+len(spine_errors[a])] = spine_errors[a]  # insert spines column data into matrix[12] rows 37 to 72
 
-        ######################################################################
+        #####################################################################
         # inserting spine discards data with leave discards data into matrix[14]
         matrix[14] = [row[:] for row in matrix[2]]  # create matrix[14], a copy of matrix[2] (leaves discards)
 
@@ -739,7 +739,7 @@ if __name__ == '__main__':
         for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
             matrix[14][b][1:1 + len(spine_discards[a])] = spine_discards[a]  # insert spines column data into matrix[12] rows 37 to 72
 
-        ######################################################################
+        #####################################################################
         # inserting spine switch status with leave switch status into matrix[15]
         matrix[15] = [row[:] for row in matrix[3]]  # create matrix[15], a copy of matrix[3] (leaves status)
 
