@@ -9,7 +9,7 @@ import curses
 import datetime
 import IPython
 
-####### CONSTANTS #######
+####### CONSTANTS ##########
 
 HEADERSIZE = 10
 IPV4 = socket.AF_INET

@@ -842,10 +842,10 @@ if __name__ == '__main__':
     logger.info('SSH connections established.')
 
     test = []
-    #############
+    #################
     for ssh_obj in ssh_list:
         test.append(ssh_obj.hostname)
-    ############
+    ##################
 
     # Map switches:
     logger.info('Mapping switch connections using LLDP')
