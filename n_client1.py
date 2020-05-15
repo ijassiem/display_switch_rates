@@ -20,7 +20,7 @@ IPADDRESS = 'dbelab04'
 # IPADDRESS = 'localhost'  # localhost or 127.0.0.1
 
 # Setup the logger
-loglevel = 'DEBUG'
+loglevel = 'WARNING'
 logger = logging.getLogger('mellanox_switch_comms')
 level = logging.getLevelName(loglevel)
 logger.setLevel(level)
