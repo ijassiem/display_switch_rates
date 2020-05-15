@@ -641,7 +641,7 @@ if __name__ == '__main__':
                             raise ValueError
                         #TODO add rates, errors, discards etc. for spines
                         try:
-                            matrix[6][0][idx] = 'KK'   # stores name of spine switch 'Sx' in matrix for column headings
+                            matrix[6][0][idx] = switch   # stores name of spine switch 'Sx' in matrix for column headings
                             matrix[7][0][idx] = switch
                             matrix[8][0][idx] = switch
                             matrix[9][0][idx] = switch

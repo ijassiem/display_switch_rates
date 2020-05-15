@@ -248,7 +248,7 @@ def draw(stdscr, shared_dict):
                                 if 0 < i < 37 or i in range(38, 73,
                                                             2):  # for ports 1/1 - 1/18 or ingress ports 1/19 - 1/36
                                     if time.time() - matrix[3][i][
-                                        j] > 10:  # switch status, set colour scheme, no response in 6 sec
+                                        j] > 12:  # switch status, set colour scheme, no response in 12 sec
                                         disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val,
                                                          curses.color_pair(11))  # 11=WHITE for no switch reply
                                         col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw),
@@ -258,7 +258,7 @@ def draw(stdscr, shared_dict):
 
                                 if i in range(37, 72, 2):  # for egress to spine ports 1/19 - 1/36
                                     if time.time() - matrix[15][i][
-                                        j] > 10:  # switch status, set colour scheme, no response in 6 sec
+                                        j] > 12:  # switch status, set colour scheme, no response in 12 sec
                                         disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val,
                                                          curses.color_pair(11))  # 11=WHITE for no switch reply
                                         # col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
@@ -382,27 +382,32 @@ def display(shared_dict):
 
 if __name__ == '__main__':
 
-    manager = multiprocessing.Manager()
+    try:
+        manager = multiprocessing.Manager()
 
-    default_data = 'default'
+        default_data = 'default'
 
-    shared_dict = manager.dict({'t': default_data, 'c': False, 'terminate': False})
+        shared_dict = manager.dict({'t': default_data, 'c': False, 'terminate': False})
 
-    p1 = multiprocessing.Process(target=comms, args=(shared_dict,))
-    p1.start()  # start comms function
-    while len(shared_dict['t']) != 16:  # wait until matrix message is received
-        time.sleep(0.5)
-    # p2 = multiprocessing.Process(target=display, args=(shared_dict,))
-    # p2.start()
-    p3 = multiprocessing.Process(target=curses.wrapper, args=(draw, shared_dict))
-    p3.start()
+        p1 = multiprocessing.Process(target=comms, args=(shared_dict,))
+        p1.start()  # start comms function
+        while len(shared_dict['t']) != 16:  # wait until matrix message is received
+            time.sleep(0.5)
+        # p2 = multiprocessing.Process(target=display, args=(shared_dict,))
+        # p2.start()
+        p3 = multiprocessing.Process(target=curses.wrapper, args=(draw, shared_dict))
+        p3.start()
 
-    while shared_dict['terminate'] == False:
-        pass
+        while shared_dict['terminate'] == False:
+            pass
 
-    p1.join()
-    p3.join()
-    logger.info('Server has ended.')
+        p1.join()
+        p3.join()
+        logger.info('Server has ended.')
+
+    except Exception as e:
+        logger.info("Error: %s" % e)
+        logger.info('Server has ended.')
 
 ####### END OF MAIN #######
 

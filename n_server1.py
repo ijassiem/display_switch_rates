@@ -18,13 +18,19 @@ import threading
 import multiprocessing
 import IPython
 
+# CONSTANTS
+HEADERSIZE = 10
+IPV4 = socket.AF_INET
+TCP = socket.SOCK_STREAM
+PORT = 12345
+
 # shared_dict = manager.dict({'sd': switch_dict, 'sl': ssh_list, 'mx':matrix})
 
 # def updater(shared_dict):  # switch_dict, ssh_list, matrix
-#     # global my_time
+#     # global matrix_global
 #     # while True:
 #     #     _matrix = get_discard(switch_dict, ssh_list, matrix)
-#     #     my_time = _matrix
+#     #     matrix_global = _matrix
 #     a = shared_dict['sd']
 #     print 'updater'
 
@@ -372,7 +378,7 @@ if __name__ == '__main__':
 
     hosts_all = hosts_leaves + hosts_spines  # leaf and spine switches combined
 
-    my_time = 0
+    matrix_global = 0
 
 # ===================================================================================================================
 # FUNCTIONS
@@ -660,7 +666,7 @@ if __name__ == '__main__':
                             raise ValueError
                         #TODO add rates, errors, discards etc. for spines
                         try:
-                            matrix[6][0][idx] = 'KK'   # stores name of spine switch 'Sx' in matrix for column headings
+                            matrix[6][0][idx] = switch   # stores name of spine switch 'Sx' in matrix for column headings
                             matrix[7][0][idx] = switch
                             matrix[8][0][idx] = switch
                             matrix[9][0][idx] = switch
@@ -752,36 +758,55 @@ if __name__ == '__main__':
         full_msg = str(len(data_pickled)).ljust(HEADERSIZE) + data_pickled  # append header and data to full_msg
         return full_msg
 
-
+    #thread2
     def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
-        global my_time
-        print 'inside my handle_client'
+        global matrix_global
+        logger.info('inside my thread2/handle_client')
+
         try:
-            connected = True
-            while connected:
-                # x = str(datetime.datetime.now())
-                x = my_time
+            while True:
+                data_ready.wait()  # wait/ block for all data from switch on 1st execution of thread
+                x = matrix_global
                 msg = msg_formatter(x)  # format msg for sending/tx
                 clientsocket.send(msg)  # send message
                 logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
                 time.sleep(3)  # time delay
-            clientsocket.close()
+                # if thread1.is_alive() == False: # exit thread if thread1/updater is terminated
+                #     break
         except Exception as e:
-            logger.info("Generic Error in in handle_client: %s" % e)
+            logger.info("Generic Error in thread2/handle_client: %s" % e)
             clientsocket.close()
-            logger.info('Socket closed from handle_client.')
+            logger.info('Socket closed')
+            logger.info('thread2/handle_client closing')
+        # finally:
+        #     clientsocket.close()
+        #     logger.info('Socket closed')
+        #     logger.info('thread2/handle_client closing')
 
+
+    # thread1
     def updater(switch_dict, ssh_list, matrix):
-        global my_time
-        while True:
-        #while threading.active_count() >= 49:
-        #while thread2.isAlive():
-            _matrix = get_discard(switch_dict, ssh_list, matrix)
-            my_time = matrix
-            #time.sleep(1)
-            #print 'updated repeated'
-            logger.info('Switch data updated')
-            print 'Updater:No. of threads running: {}.'.format(threading.active_count())
+        global matrix_global
+        logger.info('inside my thread1/updater')
+        #client_connected.wait()  # wait/ block for client connection
+        try:
+            while True:
+                _matrix = get_discard(switch_dict, ssh_list, matrix)
+                matrix_global = matrix
+                data_ready.set()  # on 1st execution of thread, event flag is set and remains set
+                logger.info('Switch data updated')
+                logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
+                logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count()-48))
+                # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
+                # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
+                # if thread2.is_alive()==False:  # exit thread if thread2/handle_client is terminated
+                #     break
+            #logger.info('thread1/updater closing')
+        except Exception as e:
+            logger.info("Generic Error in thread1/updater: %s" % e)
+            logger.info('thread1/updater closing')
+
+
 
 
 
@@ -880,25 +905,19 @@ if __name__ == '__main__':
 
     logger.info('Done mapping switches.')
 
-    # CONSTANTS
-    HEADERSIZE = 10
-    IPV4 = socket.AF_INET
-    TCP = socket.SOCK_STREAM
-    PORT = 12345
-
     matrix = create_matrix()  # create empty 3-D matrix
     matrix = get_discard(switch_dict, ssh_list, matrix)
     matrix = get_discard(switch_dict, ssh_list, matrix)  # called twice to populate matrix with previous values
 
     s = socket.socket(IPV4, TCP)  # create socket object
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
-
-    # while True:
-    #     pass
+    data_ready = threading.Event()
+    # client_connected = threading.Event()
 
     try:
         thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
-        thread1.start()
+        #thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
+        #thread1.start()
         print 'Server started...\nPress ctrl+c to exit'
         s.bind(('0.0.0.0', PORT))  # Binding to '0.0.0.0' or '' allows connections from any IP address:
         s.listen(5)  # queue of 5
@@ -907,7 +926,14 @@ if __name__ == '__main__':
             clientsocket, address = s.accept()  # accept connection from client
             logger.info('New connection accepted from %s port %s', address, PORT)
             thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
-            thread2.start()
+            #thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
+            if thread2.is_alive() == False:
+                logger.info('thread2/handle_client starting...')
+                thread2.start()
+            if thread1.is_alive() == False:
+                logger.info('thread1/updater starting...')
+                thread1.start()
+            # client_connected.set()
     except socket.error as e:
         #print "Socket Error: %s" % e
         logger.info("Socket Error: %s" % e)
@@ -921,35 +947,10 @@ if __name__ == '__main__':
         s.close()
         logger.debug('Socket closed')
 
-#############################################################
-
-# curses.wrapper(draw, switch_dict, new_ssh_list)
-
     exit = True
-
     close_ssh(ssh_list)
 
 # ===================================================================================================================
 # end of MAIN
 # ===================================================================================================================
 
-# Notes:
-#
-# switch_dict = 3-level dictionary containing data from leaf and spine switches
-# matrix = 3-D list/matrix containing the following data:
-# matrix[0] = leaves out and in rates
-# matrix[1] = leaves rx and tx errors (current -prev)
-# matrix[2] = leaves rx and tx discards (current -prev)
-# matrix[3] = leaves switch status
-# matrix[4] = leaves prev rx and tx discards
-# matrix[5] = leaves prev rx and tx errors
-# matrix[6] = spines in and out rates
-# matrix[7] = spines tx and rx  errors (current -prev)
-# matrix[8] = spines tx and rx discards (current -prev)
-# matrix[9] = spines tx and rx switch status
-# matrix[10] = spines prev tx and rx discards
-# matrix[11] = spines prev tx and rx errors
-# matrix[12] = leaves and spines  out and in rates. Combination of matrix [0] and [6]
-# matrix[13] = leave and spine rx and tx errors. Combination of matrix [1] and [7]
-# matrix[14] = leave and spine rx and tx discards. Combination of matrix [2] and [8]
-# matrix[15] = leave and spine switch status. Combination of matrix [3] and [9]
