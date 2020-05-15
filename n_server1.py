@@ -771,17 +771,17 @@ if __name__ == '__main__':
                 clientsocket.send(msg)  # send message
                 logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
                 time.sleep(3)  # time delay
-                # if thread1.is_alive() == False: # exit thread if thread1/updater is terminated
-                #     break
+                if end_main.is_set() == False:  # exit thread if thread2/handle_client is terminated
+                    break
         except Exception as e:
             logger.info("Generic Error in thread2/handle_client: %s" % e)
             clientsocket.close()
             logger.info('Socket closed')
             logger.info('thread2/handle_client closing')
-        # finally:
-        #     clientsocket.close()
-        #     logger.info('Socket closed')
-        #     logger.info('thread2/handle_client closing')
+        finally:
+            clientsocket.close()
+            logger.info('Socket closed')
+            logger.info('thread2/handle_client closing')
 
 
     # thread1
@@ -799,8 +799,8 @@ if __name__ == '__main__':
                 logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count()-48))
                 # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
                 # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
-                # if thread2.is_alive()==False:  # exit thread if thread2/handle_client is terminated
-                #     break
+                if end_main.is_set()==False:  # exit thread if thread2/handle_client is terminated
+                    break
             #logger.info('thread1/updater closing')
         except Exception as e:
             logger.info("Generic Error in thread1/updater: %s" % e)
@@ -912,6 +912,8 @@ if __name__ == '__main__':
     s = socket.socket(IPV4, TCP)  # create socket object
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
     data_ready = threading.Event()
+    end_main = threading.Event()
+    end_main.set()
     # client_connected = threading.Event()
 
     try:
@@ -945,6 +947,7 @@ if __name__ == '__main__':
         #print "Generic error: %s" % e
         logger.info("Generic Error: %s" % e)
     finally:
+        end_main.clear()
         s.close()
         logger.debug('Socket closed')
 
