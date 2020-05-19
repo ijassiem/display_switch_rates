@@ -15,8 +15,8 @@ HEADERSIZE = 10
 IPV4 = socket.AF_INET
 TCP = socket.SOCK_STREAM
 PORT = 12345
-IPADDRESS = 'dbelab04'
-#IPADDRESS = 'cmc3.cbf.mkat.karoo.kat.ac.za'
+#IPADDRESS = 'dbelab04'
+IPADDRESS = 'cmc2.cbf.mkat.karoo.kat.ac.za'
 # IPADDRESS = 'localhost'  # localhost or 127.0.0.1
 
 # Setup the logger
@@ -317,8 +317,11 @@ def draw(stdscr, shared_dict):
 def comms(shared_dict):
     try:
         s = socket.socket(IPV4, TCP)  # create socket object
+        # socket.settimeout(10.0)
         print 'Connecting to server...'
         s.connect((IPADDRESS, PORT))  # waits here and attempt connection to server
+        # socket.settimeout(None)
+        # fileobj = socket.makefile('rb', 0)
         print 'Connection established. Receiving data...'
         while True:
             full_msg = b''  # create empty variable
