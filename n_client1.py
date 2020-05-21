@@ -1,13 +1,14 @@
 import socket
 import pickle
 import logging
+import logging.handlers as handlers
 import sys
 import multiprocessing
 import time
 import sys
 import curses
 import datetime
-import IPython
+# import IPython
 
 ####### CONSTANTS ##########
 
@@ -20,19 +21,32 @@ IPADDRESS = 'cmc2.cbf.mkat.karoo.kat.ac.za'
 # IPADDRESS = 'localhost'  # localhost or 127.0.0.1
 
 # Setup the logger
-loglevel = 'WARNING'
-logger = logging.getLogger('mellanox_switch_comms')
+# loglevel = 'WARNING'
+# logger = logging.getLogger('mellanox_switch_comms')
+# level = logging.getLevelName(loglevel)
+# logger.setLevel(level)
+# fmt = '%(asctime)s %(levelname)s %(funcName)s: %(message)s'
+# #fmt = '%(asctime)s %(levelname)s %(funcName)s:%(lineno)d %(message)s'
+# #fmt = '%(asctime)s %(levelname)s: %(message)s %(threadName)s'
+# date_fmt = '%Y-%m-%d %H:%M:%S'
+# logging_format = logging.Formatter(fmt, date_fmt)
+# handler = logging.StreamHandler()
+# handler.setFormatter(logging_format)
+# handler.setLevel(level)
+# logger.addHandler(handler)
+loglevel = 'INFO'
+logger = logging.getLogger('__name__')
 level = logging.getLevelName(loglevel)
 logger.setLevel(level)
-fmt = '%(asctime)s %(levelname)s %(funcName)s: %(message)s'
-#fmt = '%(asctime)s %(levelname)s %(funcName)s:%(lineno)d %(message)s'
-#fmt = '%(asctime)s %(levelname)s: %(message)s %(threadName)s'
+# fmt = '%(asctime)s %(funcName)s:%(lineno)d %(message)s'
+# fmt = '%(asctime)s %(levelname)s: %(message)s'
+fmt = '%(asctime)s %(levelname)s - %(funcName)s: %(message)s'
 date_fmt = '%Y-%m-%d %H:%M:%S'
 logging_format = logging.Formatter(fmt, date_fmt)
-handler = logging.StreamHandler()
-handler.setFormatter(logging_format)
-handler.setLevel(level)
-logger.addHandler(handler)
+file_handler = handlers.RotatingFileHandler('clientlog.log', maxBytes=10000, backupCount=2)
+file_handler.setFormatter(logging_format)
+file_handler.setLevel(level)
+logger.addHandler(file_handler)
 
 ####### FUNCTIONS #########
 
@@ -114,6 +128,7 @@ def draw(stdscr, shared_dict):
         blink = True
         ###pool = ThreadPool(processes=1)
         while True:
+            time.sleep(1)
             if data_rdy:
                 data_rdy = False
                 ###thread_obj = pool.apply_async(get_discard, args=(switch_dict, ssh_list, matrix))
@@ -248,13 +263,13 @@ def draw(stdscr, shared_dict):
                                                          curses.color_pair(9) | curses.A_BOLD)
 
                                 if 0 < i < 37 or i in range(38, 73, 2):  # for ports 1/1 - 1/18 or ingress ports 1/19 - 1/36
-                                    if time.time() - matrix[3][i][j] > 12:  # switch status, set colour scheme, no response in 12 sec
+                                    if time.time() - matrix[3][i][j] > 16:  # switch status, set colour scheme, no response in 16 sec
                                         disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(2)| curses.A_BOLD)  # 11=BLACK BOLD text for no switch reply
                                         # col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw),curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                         # row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
 
                                 if i in range(37, 72, 2):  # for egress to spine ports 1/19 - 1/36
-                                    if time.time() - matrix[15][i][j] > 12:  # switch status, set colour scheme, no response in 12 sec
+                                    if time.time() - matrix[15][i][j] > 16:  # switch status, set colour scheme, no response in 16 sec
                                         disp_wind.addstr(i + blankc - 1, (j - 1) * colw, val, curses.color_pair(2) | curses.A_BOLD)  # 11=BLACK BOLD text for no switch reply
                                         # col_title.addstr(0, (j - 1) * colw, '{0:>{1}}'.format(matrix[0][0][j], colw), curses.color_pair(11) | curses.A_BOLD | curses.A_UNDERLINE)  # BLACK
                                         # row_title.addstr(i + blankc - 1, 0, matrix[12][i][0], curses.color_pair(11) | curses.A_BOLD)
@@ -311,18 +326,25 @@ def draw(stdscr, shared_dict):
             col_title.refresh(cminrow, cmincol, ctminrow, ctmincol, ctmaxrow, ctmaxcol)
             row_title.refresh(rminrow, rmincol, rtminrow, rtmincol, rtmaxrow, rtmaxcol)
             top_cornr.refresh(0, 0, 0, 0, 1, colw - 1)
-    except KeyboardInterrupt:
-        pass
+    except KeyboardInterrupt as e:
+        shared_dict['terminate'] = True
+        logger.exception('Keyboard Error: %s' % e)
+        logger.info('Exiting draw() function')
+        print 'Exiting display'
+        # pass
+    except Exception as e:
+        shared_dict['terminate'] = True
+        logger.exception('General Error: %s' % e)
+        logger.info('Exiting draw() function')
+        print 'Exiting display'
+
 
 def comms(shared_dict):
     try:
         s = socket.socket(IPV4, TCP)  # create socket object
-        # socket.settimeout(10.0)
         print 'Connecting to server...'
         s.connect((IPADDRESS, PORT))  # waits here and attempt connection to server
-        # socket.settimeout(None)
-        # fileobj = socket.makefile('rb', 0)
-        print 'Connection established. Receiving data...'
+        print 'Connection established. \nReceiving data. \nStarting display.'
         while True:
             full_msg = b''  # create empty variable
             new_msg = True  # set new_msg flag
@@ -388,7 +410,7 @@ if __name__ == '__main__':
 
         p1 = multiprocessing.Process(target=comms, args=(shared_dict,))
         p1.start()  # start comms function
-        while len(shared_dict['t']) != 16:  # wait until matrix message is received
+        while len(shared_dict['t']) != 16 and shared_dict['terminate'] == False:  # wait until matrix message is received
             time.sleep(0.5)
         # p2 = multiprocessing.Process(target=display, args=(shared_dict,))
         # p2.start()
@@ -396,7 +418,7 @@ if __name__ == '__main__':
         p3.start()
 
         while shared_dict['terminate'] == False:
-            pass
+            time.sleep(1)
 
         p1.join()
         p3.join()
