@@ -11,18 +11,39 @@ import socket
 import time
 import datetime
 import re
-import IPython
 import pickle
 import sys
 import threading
 import multiprocessing
-import IPython
+# import IPython
+import logging.handlers as handlers
 
 # CONSTANTS
 HEADERSIZE = 10
 IPV4 = socket.AF_INET
 TCP = socket.SOCK_STREAM
 PORT = 12345
+
+logger = logging.getLogger('__name__')
+level_info = logging.getLevelName('INFO')
+level_debug = logging.getLevelName('DEBUG')
+logger.setLevel(level_debug)
+# fmt = '%(asctime)s %(funcName)s:%(lineno)d %(message)s'
+# fmt = '%(asctime)s %(levelname)s: %(message)s'
+fmt = '%(asctime)s %(levelname)s - %(funcName)s: %(message)s'
+date_fmt = '%Y-%m-%d %H:%M:%S'
+logging_format = logging.Formatter(fmt, date_fmt)
+
+handler = logging.StreamHandler()
+handler.setFormatter(logging_format)
+handler.setLevel(level_info)
+logger.addHandler(handler)
+
+file_handler = handlers.RotatingFileHandler('app.log', maxBytes=10000, backupCount=2)
+# file_handler = logging.FileHandler('log.txt')
+file_handler.setFormatter(logging_format)
+file_handler.setLevel(level_debug)
+logger.addHandler(file_handler)
 
 # shared_dict = manager.dict({'sd': switch_dict, 'sl': ssh_list, 'mx':matrix})
 
@@ -761,7 +782,7 @@ if __name__ == '__main__':
     #thread2
     def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
         global matrix_global
-        logger.info('inside my thread2/handle_client')
+        logger.debug('inside my thread2/handle_client')
 
         try:
             while True:
@@ -775,27 +796,27 @@ if __name__ == '__main__':
                     break
         except Exception as e:
             logger.info("Generic Error in thread2/handle_client: %s" % e)
-            clientsocket.close()
-            logger.info('Socket closed')
-            logger.info('thread2/handle_client closing')
+            # clientsocket.close()
+            # logger.info('Socket closed')
+            # logger.debug('thread2/handle_client closing')
         finally:
             clientsocket.close()
             logger.info('Socket closed')
-            logger.info('thread2/handle_client closing')
+            logger.debug('thread2/handle_client closing')
 
 
     # thread1
     def updater(switch_dict, ssh_list, matrix):
         global matrix_global
-        logger.info('inside my thread1/updater')
+        logger.debug('inside my thread1/updater')
         #client_connected.wait()  # wait/ block for client connection
         try:
             while True:
-                _matrix = get_discard(switch_dict, ssh_list, matrix)
+                _matrix = get_discard(switch_dict, ssh_list, matrix) #
                 matrix_global = matrix
                 data_ready.set()  # on 1st execution of thread, event flag is set and remains set
                 logger.info('Switch data updated')
-                logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
+                logger.debug('Total No. of threads running: {}.'.format(threading.active_count()))
                 logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count()-48))
                 # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
                 # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
@@ -931,10 +952,10 @@ if __name__ == '__main__':
             thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
             #thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
             if thread2.is_alive() == False:
-                logger.info('thread2/handle_client starting...')
+                logger.debug('thread2/handle_client starting...')
                 thread2.start()
             if thread1.is_alive() == False:
-                logger.info('thread1/updater starting...')
+                logger.debug('thread1/updater starting...')
                 thread1.start()
             # client_connected.set()
     except socket.error as e:
