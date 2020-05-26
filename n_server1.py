@@ -935,7 +935,7 @@ if __name__ == '__main__':
     data_ready = threading.Event()
     end_main = threading.Event()
     end_main.set()
-    # client_connected = threading.Event()
+    ## client_connected = threading.Event()
 
     try:
         thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
