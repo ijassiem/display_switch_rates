@@ -39,10 +39,10 @@ handler.setFormatter(logging_format)
 handler.setLevel(level_info)
 logger.addHandler(handler)
 
-file_handler = handlers.RotatingFileHandler('app.log', maxBytes=10000, backupCount=2)
+file_handler = handlers.RotatingFileHandler('serverlog.log', maxBytes=10000, backupCount=2)
 # file_handler = logging.FileHandler('log.txt')
 file_handler.setFormatter(logging_format)
-file_handler.setLevel(level_debug)
+file_handler.setLevel(level_info)
 logger.addHandler(file_handler)
 
 # shared_dict = manager.dict({'sd': switch_dict, 'sl': ssh_list, 'mx':matrix})
@@ -365,19 +365,19 @@ if __name__ == '__main__':
     opts, args = parser.parse_args()
 
     # Setup the logger
-    loglevel = opts.loglevel
-    logger = logging.getLogger('mellanox_switch_comms')
-    level = logging.getLevelName(loglevel)
-    logger.setLevel(level)
-    #fmt = '%(asctime)s %(funcName)s:%(lineno)d %(message)s'
-    #fmt = '%(asctime)s %(levelname)s: %(message)s'
-    fmt = '%(asctime)s %(levelname)s %(funcName)s: %(message)s'
-    date_fmt = '%Y-%m-%d %H:%M:%S'
-    logging_format = logging.Formatter(fmt, date_fmt)
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging_format)
-    handler.setLevel(level)
-    logger.addHandler(handler)
+    # loglevel = opts.loglevel
+    # logger = logging.getLogger('mellanox_switch_comms')
+    # level = logging.getLevelName(loglevel)
+    # logger.setLevel(level)
+    # #fmt = '%(asctime)s %(funcName)s:%(lineno)d %(message)s'
+    # #fmt = '%(asctime)s %(levelname)s: %(message)s'
+    # fmt = '%(asctime)s %(levelname)s %(funcName)s: %(message)s'
+    # date_fmt = '%Y-%m-%d %H:%M:%S'
+    # logging_format = logging.Formatter(fmt, date_fmt)
+    # handler = logging.StreamHandler()
+    # handler.setFormatter(logging_format)
+    # handler.setLevel(level)
+    # logger.addHandler(handler)
 
     port = 22
     if opts.admin:
