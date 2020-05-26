@@ -42,7 +42,7 @@ logger.addHandler(handler)
 file_handler = handlers.RotatingFileHandler('serverlog.log', maxBytes=10000, backupCount=2)
 # file_handler = logging.FileHandler('log.txt')
 file_handler.setFormatter(logging_format)
-file_handler.setLevel(level_debug)
+file_handler.setLevel(level_info)
 logger.addHandler(file_handler)
 
 # shared_dict = manager.dict({'sd': switch_dict, 'sl': ssh_list, 'mx':matrix})
@@ -782,7 +782,7 @@ if __name__ == '__main__':
     #thread2
     def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
         global matrix_global
-        logger.debug('inside my thread2/handle_client')
+        logger.info('inside my thread2/handle_client')
 
         try:
             while True:
@@ -802,13 +802,13 @@ if __name__ == '__main__':
         finally:
             clientsocket.close()
             logger.info('Socket closed')
-            logger.debug('thread2/handle_client closing')
+            logger.info('thread2/handle_client closing')
 
 
     # thread1
     def updater(switch_dict, ssh_list, matrix):
         global matrix_global
-        logger.debug('inside my thread1/updater')
+        logger.info('inside my thread1/updater')
         #client_connected.wait()  # wait/ block for client connection
         try:
             while True:
@@ -816,7 +816,7 @@ if __name__ == '__main__':
                 matrix_global = matrix
                 data_ready.set()  # on 1st execution of thread, event flag is set and remains set
                 logger.info('Switch data updated')
-                logger.debug('Total No. of threads running: {}.'.format(threading.active_count()))
+                logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
                 logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count()-48))
                 # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
                 # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
@@ -952,10 +952,10 @@ if __name__ == '__main__':
             thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
             #thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
             if thread2.is_alive() == False:
-                logger.debug('thread2/handle_client starting...')
+                logger.info('thread2/handle_client starting...')
                 thread2.start()
             if thread1.is_alive() == False:
-                logger.debug('thread1/updater starting...')
+                logger.info('thread1/updater starting...')
                 thread1.start()
             # client_connected.set()
     except socket.error as e:
@@ -970,7 +970,7 @@ if __name__ == '__main__':
     finally:
         end_main.clear()
         s.close()
-        logger.debug('Socket closed')
+        logger.info('Socket closed')
 
     exit = True
     close_ssh(ssh_list)
