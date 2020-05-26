@@ -42,7 +42,7 @@ logger.addHandler(handler)
 file_handler = handlers.RotatingFileHandler('serverlog.log', maxBytes=10000, backupCount=2)
 # file_handler = logging.FileHandler('log.txt')
 file_handler.setFormatter(logging_format)
-file_handler.setLevel(level_info)
+file_handler.setLevel(level_debug)
 logger.addHandler(file_handler)
 
 # shared_dict = manager.dict({'sd': switch_dict, 'sl': ssh_list, 'mx':matrix})
@@ -795,7 +795,7 @@ if __name__ == '__main__':
                 if end_main.is_set() == False:  # exit thread if thread2/handle_client is terminated
                     break
         except Exception as e:
-            logger.info("Generic Error in thread2/handle_client: %s" % e)
+            logger.exception("Generic Error in thread2/handle_client: %s" % e)
             # clientsocket.close()
             # logger.info('Socket closed')
             # logger.debug('thread2/handle_client closing')
@@ -824,7 +824,7 @@ if __name__ == '__main__':
                     break
             #logger.info('thread1/updater closing')
         except Exception as e:
-            logger.info("Generic Error in thread1/updater: %s" % e)
+            logger.exception("Generic Error in thread1/updater: %s" % e)
             logger.info('thread1/updater closing')
 
 
@@ -960,13 +960,13 @@ if __name__ == '__main__':
             # client_connected.set()
     except socket.error as e:
         #print "Socket Error: %s" % e
-        logger.info("Socket Error: %s" % e)
+        logger.exception("Socket Error: %s" % e)
     except KeyboardInterrupt as e:
         #print("KeyboardInterrupt has been caught.")
-        logger.info("Keyboard Error: %s" % e)
+        logger.exception("Keyboard Error: %s" % e)
     except Exception as e:
         #print "Generic error: %s" % e
-        logger.info("Generic Error: %s" % e)
+        logger.exception("Generic Error: %s" % e)
     finally:
         end_main.clear()
         s.close()
