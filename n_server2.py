@@ -790,6 +790,29 @@ if __name__ == '__main__':
         full_msg = str(len(data_pickled)).ljust(HEADERSIZE) + data_pickled  # append header and data to full_msg
         return full_msg
 
+    # #thread2
+    # def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
+    #     global matrix_global
+    #     global done_global
+    #     logger.info('inside my thread2/handle_client')
+    #     while done_global == False:
+    #         time.sleep(0.5)
+    #     try:
+    #         x = matrix_global
+    #         msg = msg_formatter(x)  # format msg for sending/tx
+    #         clientsocket.send(msg)  # send message
+    #         logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
+    #
+    #     except Exception as e:
+    #         logger.exception("Generic Error in thread2/handle_client: %s" % e)
+    #         # clientsocket.close()
+    #         # logger.info('Socket closed')
+    #         # logger.debug('thread2/handle_client closing')
+    #     finally:
+    #         clientsocket.close()
+    #         logger.info('Socket closed')
+    #         logger.info('thread2/handle_client closing')
+
     #thread2
     def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
         global matrix_global
@@ -798,11 +821,14 @@ if __name__ == '__main__':
         while done_global == False:
             time.sleep(0.5)
         try:
-            x = matrix_global
-            msg = msg_formatter(x)  # format msg for sending/tx
-            clientsocket.send(msg)  # send message
-            logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
-
+            while True:
+                x = matrix_global
+                msg = msg_formatter(x)  # format msg for sending/tx
+                clientsocket.send(msg)  # send message
+                logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
+                time.sleep(4)  # time delay
+                if end_main.is_set() == False:  # exit thread if thread2/handle_client is terminated
+                    break
         except Exception as e:
             logger.exception("Generic Error in thread2/handle_client: %s" % e)
             # clientsocket.close()
@@ -943,7 +969,8 @@ if __name__ == '__main__':
 
     s = socket.socket(IPV4, TCP)  # create socket object
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
-
+    end_main = threading.Event()
+    end_main.set()
 
     ## client_connected = threading.Event()
 
