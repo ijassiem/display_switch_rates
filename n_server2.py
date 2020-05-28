@@ -401,6 +401,7 @@ if __name__ == '__main__':
     hosts_all = hosts_leaves + hosts_spines  # leaf and spine switches combined
 
     matrix_global = 0
+    done_global = False
 
 # ===================================================================================================================
 # FUNCTIONS
@@ -508,270 +509,278 @@ if __name__ == '__main__':
 
 
     def get_discard(switch_dict, ssh_list, matrix):
-        logger.info('Requesting data from leaf and spine switches...')
-        cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec|error packets"'
-        all_output = run_threaded_cmd(ssh_list, cmd)
-        good_output = False
-        timeout = 5
-        while not good_output and timeout > 0:
-            try:
-                for output in all_output:
-                    sw_name_idx = [i for i, s in enumerate(output) if 'CBFSW' in s][0]  # [0] is index of desired element in list comprehension. sw_name_idx is index of element containing CBFSW
-                    sw_name = output[sw_name_idx].split(' ')[0].split('-')[-1]  # extracts eg. L28 from string: CBFSW-L28 [standalone: master] > terminal type dumb'
-                    for i, line in enumerate(output):
-                        if line.startswith('Eth1'):
-                            eth = line  # extracts Eth1/36 from output
-                        if line.startswith('  60 seconds ingress'):
-                            in_rate = line.split(',')[1] # splits into list'  60 seconds ingress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
-                            in_rate = [int(i) for i in in_rate.split() if i.isdigit()][0] # extract digits, stored as long integer
-                        if line.startswith('  60 seconds egress'):
-                            egr_rate = line.split(',')[1]  # splits into list'  60 seconds egress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
-                            egr_rate = [int(i) for i in egr_rate.split() if i.isdigit()][0]  # extract digits, stored as long integer
-                        if line.startswith('Rx'):
-                            rx_err = output[i + 1].split(' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
-                            rx_err = [x for x in rx_err if x != '']  # creates list removing all spaces'' in list
-                            rx_err = int(rx_err[0])  # cast string of digits to int
-                            rx_disc = output[i + 2].split(' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
-                            rx_disc = [x for x in rx_disc if x != '']  # creates list removing all spaces'' in list
-                            rx_disc = int(rx_disc[0])  # cast string of digits to int (value of rx discards)
-                        if line.startswith('Tx'):
-                            tx_err = output[i + 1].split(' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
-                            tx_err = [x for x in tx_err if x != '']  # creates list removing all spaces'' in list
-                            tx_err = int(tx_err[0])  # cast string of digits to int
-                            tx_disc = output[i + 2].split(' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
-                            tx_disc = [x for x in tx_disc if x != '']  # creates list removing all spaces'' in list
-                            tx_disc = int(tx_disc[0])  # cast string of digits to int (value of tx discards)
-
-                            switch_dict[sw_name][eth]['rx_discard'] = rx_disc  # stores rx discards in switch_dict
-                            switch_dict[sw_name][eth]['tx_discard'] = tx_disc  # stores tx discards in switch_dict
-                            switch_dict[sw_name][eth]['ingress_rate'] = in_rate  # stores in rate in switch_dict
-                            switch_dict[sw_name][eth]['egress_rate'] = egr_rate  # stores out rate in switch_dict
-                            switch_dict[sw_name][eth]['rx_err'] = rx_err  # stores rx errors in switch_dict
-                            switch_dict[sw_name][eth]['tx_err'] = tx_err  # stores tx errors in switch_dict
-                            switch_dict[sw_name][eth]['sw_status'] = time.time()  # stores current time in switch_dict
-                            # switch_dict['L9']['Eth1/1']
-                good_output = True
-            except (ValueError, IndexError):
-                timeout -= 1
-
-        if timeout == 0:
-            logger.debug('Rx or tx rates not a number, unexpected output from switch: {}'.format(output[i + 1]))
-
-        port_list = []
-        lines = 0
-        for k, v in switch_dict.iteritems():  # same as .items(), display keys and values
-            for port in v.keys():  # port = Eth1/1 or Eth1/n
+        global matrix_global
+        global done_global
+        while True:
+            logger.info('Requesting data from leaf and spine switches...')
+            cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec|error packets"'
+            all_output = run_threaded_cmd(ssh_list, cmd)
+            good_output = False
+            timeout = 5
+            while not good_output and timeout > 0:
                 try:
-                    port_list.index(port)
-                except ValueError:
-                    port_list.append(port)
-        port_list = sorted(port_list, key=natural_keys)
-        lines = len(port_list) * 2 + 1
+                    for output in all_output:
+                        sw_name_idx = [i for i, s in enumerate(output) if 'CBFSW' in s][0]  # [0] is index of desired element in list comprehension. sw_name_idx is index of element containing CBFSW
+                        sw_name = output[sw_name_idx].split(' ')[0].split('-')[-1]  # extracts eg. L28 from string: CBFSW-L28 [standalone: master] > terminal type dumb'
+                        for i, line in enumerate(output):
+                            if line.startswith('Eth1'):
+                                eth = line  # extracts Eth1/36 from output
+                            if line.startswith('  60 seconds ingress'):
+                                in_rate = line.split(',')[1] # splits into list'  60 seconds ingress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
+                                in_rate = [int(i) for i in in_rate.split() if i.isdigit()][0] # extract digits, stored as long integer
+                            if line.startswith('  60 seconds egress'):
+                                egr_rate = line.split(',')[1]  # splits into list'  60 seconds egress rate: 24864 bits/sec, 3108 bytes/sec, 9 packets/sec'
+                                egr_rate = [int(i) for i in egr_rate.split() if i.isdigit()][0]  # extract digits, stored as long integer
+                            if line.startswith('Rx'):
+                                rx_err = output[i + 1].split(' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
+                                rx_err = [x for x in rx_err if x != '']  # creates list removing all spaces'' in list
+                                rx_err = int(rx_err[0])  # cast string of digits to int
+                                rx_disc = output[i + 2].split(' ')  # element after 'Rx'. split string at '' and adds remaining strings to list
+                                rx_disc = [x for x in rx_disc if x != '']  # creates list removing all spaces'' in list
+                                rx_disc = int(rx_disc[0])  # cast string of digits to int (value of rx discards)
+                            if line.startswith('Tx'):
+                                tx_err = output[i + 1].split(' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
+                                tx_err = [x for x in tx_err if x != '']  # creates list removing all spaces'' in list
+                                tx_err = int(tx_err[0])  # cast string of digits to int
+                                tx_disc = output[i + 2].split(' ')  # element after 'Tx'. split string at '' and adds remaining strings to list
+                                tx_disc = [x for x in tx_disc if x != '']  # creates list removing all spaces'' in list
+                                tx_disc = int(tx_disc[0])  # cast string of digits to int (value of tx discards)
 
-        try:
-            sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
-            sorted_leaves = ['L'+str(x) for x in range(1,37)]  # list of leaf switches [L1 - L36]
-            sorted_spines = ['S'+str(x) for x in range(1,19)]  # list of spine switches [S1 - S18]
-            first_sw = int(natural_keys(sorted_swlist[0])[-2])  # extracts 1 from 'L1' and casts to int
-        except (ValueError, IndexError):
-            logger.error('Switch name not end in a number: {}'.format(first_sw))
-            close_ssh(ssh_list)
-            raise ValueError
+                                switch_dict[sw_name][eth]['rx_discard'] = rx_disc  # stores rx discards in switch_dict
+                                switch_dict[sw_name][eth]['tx_discard'] = tx_disc  # stores tx discards in switch_dict
+                                switch_dict[sw_name][eth]['ingress_rate'] = in_rate  # stores in rate in switch_dict
+                                switch_dict[sw_name][eth]['egress_rate'] = egr_rate  # stores out rate in switch_dict
+                                switch_dict[sw_name][eth]['rx_err'] = rx_err  # stores rx errors in switch_dict
+                                switch_dict[sw_name][eth]['tx_err'] = tx_err  # stores tx errors in switch_dict
+                                switch_dict[sw_name][eth]['sw_status'] = time.time()  # stores current time in switch_dict
+                                # switch_dict['L9']['Eth1/1']
+                    good_output = True
+                except (ValueError, IndexError):
+                    timeout -= 1
 
-        # storing of leaf data in matrix
-        for switch in switch_dict.keys(): # ['L1','L2','L3'.....]
-            if switch.startswith('L'):
-                idx = sorted_leaves.index(switch) + 1  # gets value of index of leaf switch 'Lx'
+            if timeout == 0:
+                logger.debug('Rx or tx rates not a number, unexpected output from switch: {}'.format(output[i + 1]))
 
-                for port, data in switch_dict[switch].iteritems():
+            port_list = []
+            lines = 0
+            for k, v in switch_dict.iteritems():  # same as .items(), display keys and values
+                for port in v.keys():  # port = Eth1/1 or Eth1/n
                     try:
-                        port_idx = port_list.index(port) + 1
+                        port_list.index(port)
+                    except ValueError:
+                        port_list.append(port)
+            port_list = sorted(port_list, key=natural_keys)
+            lines = len(port_list) * 2 + 1
 
-                        matrix[0][0][idx] = switch  # stores name of leaf switch 'Lx' in matrix for column headings
-                        matrix[1][0][idx] = switch
-                        matrix[2][0][idx] = switch
-                        matrix[3][0][idx] = switch
-                        matrix[4][0][idx] = switch
-                        matrix[5][0][idx] = switch
+            try:
+                sorted_swlist = sorted(switch_dict.keys(), key=natural_keys)  # sort keys in switch_dict alphabetically
+                sorted_leaves = ['L'+str(x) for x in range(1,37)]  # list of leaf switches [L1 - L36]
+                sorted_spines = ['S'+str(x) for x in range(1,19)]  # list of spine switches [S1 - S18]
+                first_sw = int(natural_keys(sorted_swlist[0])[-2])  # extracts 1 from 'L1' and casts to int
+            except (ValueError, IndexError):
+                logger.error('Switch name not end in a number: {}'.format(first_sw))
+                close_ssh(ssh_list)
+                raise ValueError
 
-                        matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
-                        matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
+            # storing of leaf data in matrix
+            for switch in switch_dict.keys(): # ['L1','L2','L3'.....]
+                if switch.startswith('L'):
+                    idx = sorted_leaves.index(switch) + 1  # gets value of index of leaf switch 'Lx'
 
-                        matrix[1][port_idx * 2 - 1][idx] = data['rx_err'] - matrix[5][port_idx * 2 - 1][idx]  # values for current rx errors minus prev
-                        matrix[1][port_idx * 2][idx] = data['tx_err'] - matrix[5][port_idx * 2][idx]  # values for current tx errors minus prev
-
-                        matrix[2][port_idx * 2 - 1][idx] = data['rx_discard'] - matrix[4][port_idx * 2 - 1][idx] # values for current minus prev rx discards
-                        matrix[2][port_idx * 2][idx] = data['tx_discard'] - matrix[4][port_idx * 2][idx]  # values for current minus prev tx discards
-
-                        matrix[3][port_idx * 2 - 1][idx] = data['sw_status']   # values for switch status
-                        matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status same as above
-
-                        matrix[4][port_idx * 2 - 1][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[4]
-                        matrix[4][port_idx * 2][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[4]
-
-                        matrix[5][port_idx * 2 - 1][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[5]
-                        matrix[5][port_idx * 2][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[5]
-
-                        matrix[0][port_idx * 2 - 1][0] = port[3:] + ' out'  # row headings for ports 1/1 - 1/36
-                        matrix[0][port_idx * 2][0] = port[3:] + ' in'  # row headings for ports 1/1 - 1/36
-
-                        ###########################################################
-                        # adds spine switch no. 'Sx' to row headings of leaf ports 19-36
-                        if port[3:] == '1/19':
-                            matrix[0][port_idx * 2 - 1][0] = '1/19->S1'
-                        elif port[3:] == '1/20':
-                            matrix[0][port_idx * 2 - 1][0] = '1/20->S2'
-                        elif port[3:] == '1/21':
-                            matrix[0][port_idx * 2 - 1][0] = '1/21->S3'
-                        elif port[3:] == '1/22':
-                            matrix[0][port_idx * 2 - 1][0] = '1/22->S4'
-                        elif port[3:] == '1/23':
-                            matrix[0][port_idx * 2 - 1][0] = '1/23->S5'
-                        elif port[3:] == '1/24':
-                            matrix[0][port_idx * 2 - 1][0] = '1/24->S6'
-                        elif port[3:] == '1/25':
-                            matrix[0][port_idx * 2 - 1][0] = '1/25->S7'
-                        elif port[3:] == '1/26':
-                            matrix[0][port_idx * 2 - 1][0] = '1/26->S8'
-                        elif port[3:] == '1/27':
-                            matrix[0][port_idx * 2 - 1][0] = '1/27->S9'
-                        elif port[3:] == '1/28':
-                            matrix[0][port_idx * 2 - 1][0] = '1/28->S10'
-                        elif port[3:] == '1/29':
-                            matrix[0][port_idx * 2 - 1][0] = '1/29->S11'
-                        elif port[3:] == '1/30':
-                            matrix[0][port_idx * 2 - 1][0] = '1/30->S12'
-                        elif port[3:] == '1/31':
-                            matrix[0][port_idx * 2 - 1][0] = '1/31->S13'
-                        elif port[3:] == '1/32':
-                            matrix[0][port_idx * 2 - 1][0] = '1/32->S14'
-                        elif port[3:] == '1/33':
-                            matrix[0][port_idx * 2 - 1][0] = '1/33->S15'
-                        elif port[3:] == '1/34':
-                            matrix[0][port_idx * 2 - 1][0] = '1/34->S16'
-                        elif port[3:] == '1/35':
-                            matrix[0][port_idx * 2 - 1][0] = '1/35->S17'
-                        elif port[3:] == '1/36':
-                            matrix[0][port_idx * 2 - 1][0] = '1/36->S18'
-
-                        ###########################################################
-                        #adding row headings to matrix
-                        matrix[1][port_idx * 2 - 1][0] = port[3:] + ' rx err'  # row headings for rx errors
-                        matrix[1][port_idx * 2][0] = port[3:] + ' tx err'  # row headings for tx errors
-                        matrix[2][port_idx * 2 - 1][0] = port[3:] + ' rx ds'  # row headings for rx discards
-                        matrix[2][port_idx * 2][0] = port[3:] + ' tx ds'  # row headings for tx discards
-                        matrix[3][port_idx * 2 - 1][0] = port[3:] + ' sw st'  # row headings for switch status
-                        matrix[3][port_idx * 2][0] = port[3:] + ' sw st'  # row headings for switch status
-                        matrix[4][port_idx * 2 - 1][0] = port[3:] + ' prev rx ds'  # row headings for prev rx discards
-                        matrix[4][port_idx * 2][0] = port[3:] + ' prev tx ds'  # row headings for prev tx discards
-                        matrix[5][port_idx * 2 - 1][0] = port[3:] + ' prev rx err'  # row headings for prev rx errors
-                        matrix[5][port_idx * 2][0] = port[3:] + ' prev tx err'  # row headings for prev tx errors
-
-                    except (IndexError, TypeError):
-                        pass
-
-        # storing of spine data in matrix
-        for switch in switch_dict.keys():  # ['S1','S2','S3'.....]
-            if switch.startswith('S'):
-                idx = sorted_spines.index(switch) + 1  # gets value of index of spine switch 'Sx'
-
-                for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Sx'
-                    if data.has_key('remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
-                        rem_sw = re.split('(\d+)', data['remote_switch']) #seperate number/digit and return list
-
+                    for port, data in switch_dict[switch].iteritems():
                         try:
-                            rem_sw_nr = int(rem_sw[-2])  # [-2] second last index
+                            port_idx = port_list.index(port) + 1
 
-                        except (ValueError, IndexError):
-                            logger.error('Remote switch name from LLDP does not end in a number: {}'.format(data['remote_switch']))
-                            close_ssh(ssh_list)
-                            raise ValueError
-                        #TODO add rates, errors, discards etc. for spines
-                        try:
-                            matrix[6][0][idx] = switch   # stores name of spine switch 'Sx' in matrix for column headings
-                            matrix[7][0][idx] = switch
-                            matrix[8][0][idx] = switch
-                            matrix[9][0][idx] = switch
-                            matrix[10][0][idx] = switch
-                            matrix[11][0][idx] = switch
+                            matrix[0][0][idx] = switch  # stores name of leaf switch 'Lx' in matrix for column headings
+                            matrix[1][0][idx] = switch
+                            matrix[2][0][idx] = switch
+                            matrix[3][0][idx] = switch
+                            matrix[4][0][idx] = switch
+                            matrix[5][0][idx] = switch
 
-                            matrix[6][rem_sw_nr * 2 - 1][idx] = data['ingress_rate']  # values for ingress rate
-                            matrix[6][rem_sw_nr * 2][idx] = data['egress_rate']  # values for egress rate
+                            matrix[0][port_idx * 2 - 1][idx] = data['egress_rate']  # values for egress rate
+                            matrix[0][port_idx * 2][idx] = data['ingress_rate']  # values for ingress rate
 
-                            matrix[7][rem_sw_nr * 2 - 1][idx] = data['tx_err'] - matrix[11][rem_sw_nr * 2 - 1][idx]  # values for current tx errors minus prev
-                            matrix[7][rem_sw_nr * 2][idx] = data['rx_err'] - matrix[11][rem_sw_nr * 2][idx]  # values for current rx errors minus prev
+                            matrix[1][port_idx * 2 - 1][idx] = data['rx_err'] - matrix[5][port_idx * 2 - 1][idx]  # values for current rx errors minus prev
+                            matrix[1][port_idx * 2][idx] = data['tx_err'] - matrix[5][port_idx * 2][idx]  # values for current tx errors minus prev
 
-                            matrix[8][rem_sw_nr * 2 - 1][idx] = data['tx_discard'] - matrix[10][rem_sw_nr * 2 - 1][idx]  # values for current minus prev tx discards
-                            matrix[8][rem_sw_nr * 2][idx] = data['rx_discard'] - matrix[10][rem_sw_nr * 2][idx]  # values for current minus prev rx discards
+                            matrix[2][port_idx * 2 - 1][idx] = data['rx_discard'] - matrix[4][port_idx * 2 - 1][idx] # values for current minus prev rx discards
+                            matrix[2][port_idx * 2][idx] = data['tx_discard'] - matrix[4][port_idx * 2][idx]  # values for current minus prev tx discards
 
-                            matrix[9][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
-                            matrix[9][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
+                            matrix[3][port_idx * 2 - 1][idx] = data['sw_status']   # values for switch status
+                            matrix[3][port_idx * 2][idx] = data['sw_status']  # values for switch status same as above
 
-                            matrix[10][rem_sw_nr * 2 - 1][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[10]
-                            matrix[10][rem_sw_nr * 2][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[10]
+                            matrix[4][port_idx * 2 - 1][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[4]
+                            matrix[4][port_idx * 2][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[4]
 
-                            matrix[11][rem_sw_nr * 2 - 1][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[11]
-                            matrix[11][rem_sw_nr * 2][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[11]
+                            matrix[5][port_idx * 2 - 1][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[5]
+                            matrix[5][port_idx * 2][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[5]
 
-                            #############################
-                            # adding row headings to matrix
-                            matrix[6][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'
-                            matrix[6][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'
-                            matrix[7][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx err'
-                            matrix[7][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx err'
-                            matrix[8][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx ds'
-                            matrix[8][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx ds'
-                            matrix[9][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'
-                            matrix[9][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'
-                            matrix[10][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx ds'
-                            matrix[10][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx ds'
-                            matrix[11][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx err'
-                            matrix[11][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx err'
+                            matrix[0][port_idx * 2 - 1][0] = port[3:] + ' out'  # row headings for ports 1/1 - 1/36
+                            matrix[0][port_idx * 2][0] = port[3:] + ' in'  # row headings for ports 1/1 - 1/36
+
+                            ###########################################################
+                            # adds spine switch no. 'Sx' to row headings of leaf ports 19-36
+                            if port[3:] == '1/19':
+                                matrix[0][port_idx * 2 - 1][0] = '1/19->S1'
+                            elif port[3:] == '1/20':
+                                matrix[0][port_idx * 2 - 1][0] = '1/20->S2'
+                            elif port[3:] == '1/21':
+                                matrix[0][port_idx * 2 - 1][0] = '1/21->S3'
+                            elif port[3:] == '1/22':
+                                matrix[0][port_idx * 2 - 1][0] = '1/22->S4'
+                            elif port[3:] == '1/23':
+                                matrix[0][port_idx * 2 - 1][0] = '1/23->S5'
+                            elif port[3:] == '1/24':
+                                matrix[0][port_idx * 2 - 1][0] = '1/24->S6'
+                            elif port[3:] == '1/25':
+                                matrix[0][port_idx * 2 - 1][0] = '1/25->S7'
+                            elif port[3:] == '1/26':
+                                matrix[0][port_idx * 2 - 1][0] = '1/26->S8'
+                            elif port[3:] == '1/27':
+                                matrix[0][port_idx * 2 - 1][0] = '1/27->S9'
+                            elif port[3:] == '1/28':
+                                matrix[0][port_idx * 2 - 1][0] = '1/28->S10'
+                            elif port[3:] == '1/29':
+                                matrix[0][port_idx * 2 - 1][0] = '1/29->S11'
+                            elif port[3:] == '1/30':
+                                matrix[0][port_idx * 2 - 1][0] = '1/30->S12'
+                            elif port[3:] == '1/31':
+                                matrix[0][port_idx * 2 - 1][0] = '1/31->S13'
+                            elif port[3:] == '1/32':
+                                matrix[0][port_idx * 2 - 1][0] = '1/32->S14'
+                            elif port[3:] == '1/33':
+                                matrix[0][port_idx * 2 - 1][0] = '1/33->S15'
+                            elif port[3:] == '1/34':
+                                matrix[0][port_idx * 2 - 1][0] = '1/34->S16'
+                            elif port[3:] == '1/35':
+                                matrix[0][port_idx * 2 - 1][0] = '1/35->S17'
+                            elif port[3:] == '1/36':
+                                matrix[0][port_idx * 2 - 1][0] = '1/36->S18'
+
+                            ###########################################################
+                            #adding row headings to matrix
+                            matrix[1][port_idx * 2 - 1][0] = port[3:] + ' rx err'  # row headings for rx errors
+                            matrix[1][port_idx * 2][0] = port[3:] + ' tx err'  # row headings for tx errors
+                            matrix[2][port_idx * 2 - 1][0] = port[3:] + ' rx ds'  # row headings for rx discards
+                            matrix[2][port_idx * 2][0] = port[3:] + ' tx ds'  # row headings for tx discards
+                            matrix[3][port_idx * 2 - 1][0] = port[3:] + ' sw st'  # row headings for switch status
+                            matrix[3][port_idx * 2][0] = port[3:] + ' sw st'  # row headings for switch status
+                            matrix[4][port_idx * 2 - 1][0] = port[3:] + ' prev rx ds'  # row headings for prev rx discards
+                            matrix[4][port_idx * 2][0] = port[3:] + ' prev tx ds'  # row headings for prev tx discards
+                            matrix[5][port_idx * 2 - 1][0] = port[3:] + ' prev rx err'  # row headings for prev rx errors
+                            matrix[5][port_idx * 2][0] = port[3:] + ' prev tx err'  # row headings for prev tx errors
 
                         except (IndexError, TypeError):
                             pass
 
-        ######################################################################
-        #inserting spine rates data with leave rates data into matrix[12]
-        matrix[12] = [row[:] for row in matrix[0]]  # create matrix[12], a copy of matrix[0] (leaves rates)
+            # storing of spine data in matrix
+            for switch in switch_dict.keys():  # ['S1','S2','S3'.....]
+                if switch.startswith('S'):
+                    idx = sorted_spines.index(switch) + 1  # gets value of index of spine switch 'Sx'
 
-        spine_rates = [[value[column] for row, value in enumerate(matrix[6]) if row%2==1] for column in range(1, 19)]
-        # extract spine column ingress data from matrix[6] and store as rows in spine_column 2D matrix
+                    for port, data in switch_dict[switch].iteritems():  # get keys and values in 'switch_dict' in 'Sx'
+                        if data.has_key('remote_switch'):  # has_key returns true if 'remote_switch' is in dictionary
+                            rem_sw = re.split('(\d+)', data['remote_switch']) #seperate number/digit and return list
 
-        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
-            matrix[12][b][1:1+len(spine_rates[a])] = spine_rates[a]  # insert spines column data into matrix[12] rows 37 to 72
+                            try:
+                                rem_sw_nr = int(rem_sw[-2])  # [-2] second last index
 
-        ############################################################################
-        # inserting spine errors data with leave errors data into matrix[13]
-        matrix[13] = [row[:] for row in matrix[1]]  # create matrix[13], a copy of matrix[1] (leaves errors)
+                            except (ValueError, IndexError):
+                                logger.error('Remote switch name from LLDP does not end in a number: {}'.format(data['remote_switch']))
+                                close_ssh(ssh_list)
+                                raise ValueError
+                            #TODO add rates, errors, discards etc. for spines
+                            try:
+                                matrix[6][0][idx] = switch   # stores name of spine switch 'Sx' in matrix for column headings
+                                matrix[7][0][idx] = switch
+                                matrix[8][0][idx] = switch
+                                matrix[9][0][idx] = switch
+                                matrix[10][0][idx] = switch
+                                matrix[11][0][idx] = switch
 
-        spine_errors = [[value[column] for row, value in enumerate(matrix[7]) if row>0 and row%2==0] for column in range(1, 19)]
-        # extract spine column rx discards from matrix[6] and store as rows in spine_column 2D matrix
+                                matrix[6][rem_sw_nr * 2 - 1][idx] = data['ingress_rate']  # values for ingress rate
+                                matrix[6][rem_sw_nr * 2][idx] = data['egress_rate']  # values for egress rate
 
-        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
-            matrix[13][b][1:1+len(spine_errors[a])] = spine_errors[a]  # insert spines column data into matrix[12] rows 37 to 72
+                                matrix[7][rem_sw_nr * 2 - 1][idx] = data['tx_err'] - matrix[11][rem_sw_nr * 2 - 1][idx]  # values for current tx errors minus prev
+                                matrix[7][rem_sw_nr * 2][idx] = data['rx_err'] - matrix[11][rem_sw_nr * 2][idx]  # values for current rx errors minus prev
 
-        #####################################################################
-        # inserting spine discards data with leave discards data into matrix[14]
-        matrix[14] = [row[:] for row in matrix[2]]  # create matrix[14], a copy of matrix[2] (leaves discards)
+                                matrix[8][rem_sw_nr * 2 - 1][idx] = data['tx_discard'] - matrix[10][rem_sw_nr * 2 - 1][idx]  # values for current minus prev tx discards
+                                matrix[8][rem_sw_nr * 2][idx] = data['rx_discard'] - matrix[10][rem_sw_nr * 2][idx]  # values for current minus prev rx discards
 
-        spine_discards = [[value[column] for row, value in enumerate(matrix[8]) if row>0 and row%2==0] for column in range(1, 19)]
-        # extract spine column rx errors from matrix[6] and store as rows in spine_column 2D matrix
+                                matrix[9][rem_sw_nr * 2 - 1][idx] = data['sw_status']  # values for switch status
+                                matrix[9][rem_sw_nr * 2][idx] = data['sw_status']  # values for switch status, same as above
 
-        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
-            matrix[14][b][1:1 + len(spine_discards[a])] = spine_discards[a]  # insert spines column data into matrix[12] rows 37 to 72
+                                matrix[10][rem_sw_nr * 2 - 1][idx] = data['tx_discard']  # prev values for tx discards stored in  matrix[10]
+                                matrix[10][rem_sw_nr * 2][idx] = data['rx_discard']  # prev values for rx discards stored in  matrix[10]
 
-        #####################################################################
-        # inserting spine switch status with leave switch status into matrix[15]
-        matrix[15] = [row[:] for row in matrix[3]]  # create matrix[15], a copy of matrix[3] (leaves status)
+                                matrix[11][rem_sw_nr * 2 - 1][idx] = data['tx_err']  # prev values for tx discards stored in  matrix[11]
+                                matrix[11][rem_sw_nr * 2][idx] = data['rx_err']  # prev values for rx discards stored in  matrix[11]
 
-        spine_status = [[value[column] for row, value in enumerate(matrix[9]) if row>0 and row%2==0] for column in range(1, 19)]
-        # extract spine column switch status from matrix[6] and store as rows in spine_column 2D matrix
+                                #############################
+                                # adding row headings to matrix
+                                matrix[6][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' out'
+                                matrix[6][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' in'
+                                matrix[7][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx err'
+                                matrix[7][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx err'
+                                matrix[8][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' tx ds'
+                                matrix[8][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' rx ds'
+                                matrix[9][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' sw st'
+                                matrix[9][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' sw st'
+                                matrix[10][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx ds'
+                                matrix[10][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx ds'
+                                matrix[11][rem_sw_nr * 2 - 1][0] = 'L' + str(rem_sw_nr) + ' prev tx err'
+                                matrix[11][rem_sw_nr * 2][0] = 'L' + str(rem_sw_nr) + ' prev rx err'
 
-        for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
-            matrix[15][b][1:1+len(spine_status[a])] = spine_status[a]  # insert spines column data into matrix[12] rows 37 to 72
+                            except (IndexError, TypeError):
+                                pass
 
-        return matrix
+            ######################################################################
+            #inserting spine rates data with leave rates data into matrix[12]
+            matrix[12] = [row[:] for row in matrix[0]]  # create matrix[12], a copy of matrix[0] (leaves rates)
+
+            spine_rates = [[value[column] for row, value in enumerate(matrix[6]) if row%2==1] for column in range(1, 19)]
+            # extract spine column ingress data from matrix[6] and store as rows in spine_column 2D matrix
+
+            for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+                matrix[12][b][1:1+len(spine_rates[a])] = spine_rates[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+            ############################################################################
+            # inserting spine errors data with leave errors data into matrix[13]
+            matrix[13] = [row[:] for row in matrix[1]]  # create matrix[13], a copy of matrix[1] (leaves errors)
+
+            spine_errors = [[value[column] for row, value in enumerate(matrix[7]) if row>0 and row%2==0] for column in range(1, 19)]
+            # extract spine column rx discards from matrix[6] and store as rows in spine_column 2D matrix
+
+            for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+                matrix[13][b][1:1+len(spine_errors[a])] = spine_errors[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+            #####################################################################
+            # inserting spine discards data with leave discards data into matrix[14]
+            matrix[14] = [row[:] for row in matrix[2]]  # create matrix[14], a copy of matrix[2] (leaves discards)
+
+            spine_discards = [[value[column] for row, value in enumerate(matrix[8]) if row>0 and row%2==0] for column in range(1, 19)]
+            # extract spine column rx errors from matrix[6] and store as rows in spine_column 2D matrix
+
+            for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+                matrix[14][b][1:1 + len(spine_discards[a])] = spine_discards[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+            #####################################################################
+            # inserting spine switch status with leave switch status into matrix[15]
+            matrix[15] = [row[:] for row in matrix[3]]  # create matrix[15], a copy of matrix[3] (leaves status)
+
+            spine_status = [[value[column] for row, value in enumerate(matrix[9]) if row>0 and row%2==0] for column in range(1, 19)]
+            # extract spine column switch status from matrix[6] and store as rows in spine_column 2D matrix
+
+            for a, b in enumerate(range(37, 72, 2)):  # iterate through odd row numbers 37-71 for storing spine info in matrix[12]
+                matrix[15][b][1:1+len(spine_status[a])] = spine_status[a]  # insert spines column data into matrix[12] rows 37 to 72
+
+            # return matrix
+            matrix_global = matrix
+            done_global = True
+            logger.info('Switch data updated.')
+            logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
+            logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count() - 48))
 
 
     def msg_formatter(data):
@@ -783,10 +792,11 @@ if __name__ == '__main__':
     #thread2
     def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
         global matrix_global
+        global done_global
         logger.info('inside my thread2/handle_client')
-
+        while done_global == False:
+            time.sleep(0.5)
         try:
-            data_ready.wait()  # wait/ block for all data from switch on 1st execution of thread
             x = matrix_global
             msg = msg_formatter(x)  # format msg for sending/tx
             clientsocket.send(msg)  # send message
@@ -804,24 +814,24 @@ if __name__ == '__main__':
 
 
     # thread1
-    def updater(switch_dict, ssh_list, matrix):
-        global matrix_global
-        logger.info('inside my thread1/updater')
-        #client_connected.wait()  # wait/ block for client connection
-        try:
-            while True:
-                _matrix = get_discard(switch_dict, ssh_list, matrix) #
-                matrix_global = matrix
-                data_ready.set()  # on 1st execution of thread, event flag is set and remains set
-                logger.info('Switch data updated')
-                # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
-                # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
-                if end_main.is_set()==False:  # exit thread if thread2/handle_client is terminated
-                    break
-            #logger.info('thread1/updater closing')
-        except Exception as e:
-            logger.exception("Generic Error in thread1/updater: %s" % e)
-            logger.info('thread1/updater closing')
+    # def updater(switch_dict, ssh_list, matrix):
+    #     global matrix_global
+    #     logger.info('inside my thread1/updater')
+    #     #client_connected.wait()  # wait/ block for client connection
+    #     try:
+    #         while True:
+    #             _matrix = get_discard(switch_dict, ssh_list, matrix) #
+    #             matrix_global = matrix
+    #             data_ready.set()  # on 1st execution of thread, event flag is set and remains set
+    #             logger.info('Switch data updated')
+    #             # logger.info('Thread1 alive: {}.'.format(thread1.is_alive()))
+    #             # logger.info('Thread2 alive: {}.'.format(thread2.is_alive()))
+    #             if end_main.is_set()==False:  # exit thread if thread2/handle_client is terminated
+    #                 break
+    #         #logger.info('thread1/updater closing')
+    #     except Exception as e:
+    #         logger.exception("Generic Error in thread1/updater: %s" % e)
+    #         logger.info('thread1/updater closing')
 
 
 
@@ -922,19 +932,22 @@ if __name__ == '__main__':
 
     logger.info('Done mapping switches.')
 
-    matrix = create_matrix()  # create empty 3-D matrix
-    matrix = get_discard(switch_dict, ssh_list, matrix)
-    matrix = get_discard(switch_dict, ssh_list, matrix)  # called twice to populate matrix with previous values
-
-    s = socket.socket(IPV4, TCP)  # create socket object
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
     data_ready = threading.Event()
     end_main = threading.Event()
     end_main.set()
+
+    matrix = create_matrix()  # create empty 3-D matrix
+    # matrix = get_discard(switch_dict, ssh_list, matrix)
+    # matrix = get_discard(switch_dict, ssh_list, matrix)  # called twice to populate matrix with previous values
+
+    s = socket.socket(IPV4, TCP)  # create socket object
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
+
+
     ## client_connected = threading.Event()
 
     try:
-        thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
+        thread1 = threading.Thread(target=get_discard, args=(switch_dict, ssh_list, matrix))
         thread1.setDaemon(True)
         #thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
         #thread1.start()
@@ -951,10 +964,9 @@ if __name__ == '__main__':
                 logger.info('thread2/handle_client starting...')
                 thread2.start()
             if thread1.is_alive() == False:
-                logger.info('thread1/updater starting...')
+                logger.info('thread1/get_discards starting...')
                 thread1.start()
-            logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
-            logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count() - 48))
+
             # client_connected.set()
     except socket.error as e:
         #print "Socket Error: %s" % e
