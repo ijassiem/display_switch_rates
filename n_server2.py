@@ -512,6 +512,7 @@ if __name__ == '__main__':
         global matrix_global
         global done_global
         while True:
+            time.sleep(0.5)
             logger.info('Requesting data from leaf and spine switches...')
             cmd = 'show interface ethernet | include "Rx|Tx|Eth|discard packets|bytes/sec|error packets"'
             all_output = run_threaded_cmd(ssh_list, cmd)
