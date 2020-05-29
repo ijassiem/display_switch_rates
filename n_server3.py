@@ -559,7 +559,9 @@ if __name__ == '__main__':
                     timeout -= 1
 
             if timeout == 0:
-                logger.debug('Rx or tx rates not a number, unexpected output from switch: {}'.format(output[i + 1]))
+                # logger.debug('Rx or tx rates not a number, unexpected output from switch: {}'.format(output[i + 1]))
+                logger.debug('Rx or tx rates not a number, unexpected output from switch.')
+
 
             port_list = []
             lines = 0
@@ -783,9 +785,9 @@ if __name__ == '__main__':
             logger.info('Addresses: %s', address_list)
             # logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
             logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count() - 48))
-            if terminate.is_set() or len(address_list) == 0:  # exit thread if thread2/handle_client is terminated
+            if terminate.is_set():  # exit thread if thread2/handle_client is terminated
                 data_ready.clear()
-                logger.info('Exitting get_discards()')
+                logger.info('Exiting get_discards()')
                 break
 
 
@@ -844,7 +846,7 @@ if __name__ == '__main__':
             address_list.remove(address) # remove connection from list
             clientsocket.close()
             logger.info('Socket closed')
-            logger.info('Exitting handle_client()')
+            logger.info('Exiting handle_client()')
 
 
     # thread1
@@ -983,31 +985,23 @@ if __name__ == '__main__':
         # thread1.setDaemon(True)
         #thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
         #thread1.start()
-        print 'Server started...\nPress ctrl+c to exit'
+        thread1 = threading.Thread(target=get_discard, args=(switch_dict, ssh_list, matrix, data_ready, terminate))
+        thread1.setDaemon(True)
+        logger.info('Starting get_discards() thread')
+        thread1.start()
+
         s.bind(('0.0.0.0', PORT))  # Binding to '0.0.0.0' or '' allows connections from any IP address:
         s.listen(5)  # queue of 5
-        # client_list = []
         address_list =[]
-        logger.info('Socket is listening for clients.')
+        logger.info('Server is running.')
+        logger.info('Listening for client connections.')
         while True:
             clientsocket, address = s.accept()  # accept connection from client
-            # client_list.append(clientsocket)
-            # address_list.append(address)
             logger.info('New connection accepted from %s port %s', address, PORT)
             thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s, data_ready, terminate))
-            thread1 = threading.Thread(target=get_discard, args=(switch_dict, ssh_list, matrix, data_ready, terminate))
-            thread1.setDaemon(True)
-            if thread2.is_alive() == False:
-                logger.info('Starting handle_client() thread')
-                thread2.start()
-            if thread1.is_alive() == False:
-                logger.info('Starting get_discards() thread')
-                thread1.start()
-            # logger.info('Length of client list: %s', len(client_list))
-            # logger.info('Length of address list: %s', len(address_list))
-            # logger.info('Address: %s', address[0])
+            logger.info('Starting handle_client() thread')
+            thread2.start()
 
-            # client_connected.set()
     except socket.error as e:
         #print "Socket Error: %s" % e
         logger.exception("Socket Error: %s" % e)

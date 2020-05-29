@@ -372,7 +372,7 @@ def comms(_s):
             if new_msg:
                 break
         # s.close()
-        logger.info('Exitting comms()')
+        logger.info('Exiting comms()')
         return matrix_received
 
     except socket.error as e:
