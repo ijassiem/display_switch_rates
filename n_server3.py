@@ -401,7 +401,6 @@ if __name__ == '__main__':
     hosts_all = hosts_leaves + hosts_spines  # leaf and spine switches combined
 
     matrix_global = 0
-    done_global = False
 
 # ===================================================================================================================
 # FUNCTIONS
@@ -508,9 +507,9 @@ if __name__ == '__main__':
         return _matrix
 
 
-    def get_discard(switch_dict, ssh_list, matrix):
+    def get_discard(switch_dict, ssh_list, matrix, data_ready, terminate):
         global matrix_global
-        global done_global
+        global address_list
         while True:
             time.sleep(0.5)
             logger.info('Requesting data from leaf and spine switches...')
@@ -778,10 +777,17 @@ if __name__ == '__main__':
 
             # return matrix
             matrix_global = matrix
-            done_global = True
+            data_ready.set()  # data from switches acquired and ready for use
             logger.info('Switch data updated.')
-            logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
+            logger.info('Length of address list: %s', len(address_list))
+            logger.info('Addresses: %s', address_list)
+            # logger.info('Total No. of threads running: {}.'.format(threading.active_count()))
             logger.info('No. of threads/connections to clients: {}.'.format(threading.active_count() - 48))
+            if terminate.is_set() or len(address_list) == 0:  # exit thread if thread2/handle_client is terminated
+                data_ready.clear()
+                logger.info('Exitting get_discards()')
+                break
+
 
 
     def msg_formatter(data):
@@ -814,12 +820,12 @@ if __name__ == '__main__':
     #         logger.info('thread2/handle_client closing')
 
     #thread2
-    def handle_client(clientsocket, address, s): #('New connection accepted from %s port %s', address, PORT)
+    def handle_client(clientsocket, address, s, data_ready, terminate): #('New connection accepted from %s port %s', address, PORT)
         global matrix_global
-        global done_global
+        global address_list
+        address_list.append(address) # add connection to list
         logger.info('inside my thread2/handle_client')
-        while done_global == False:
-            time.sleep(0.5)
+        data_ready.wait() # on 1st run, waits for data to be available from comms()
         try:
             while True:
                 x = matrix_global
@@ -827,7 +833,7 @@ if __name__ == '__main__':
                 clientsocket.send(msg)  # send message
                 logger.info('Message sent to client %s. Size %s bytes.', address, str(sys.getsizeof(msg)))
                 time.sleep(4)  # time delay
-                if end_main.is_set() == False:  # exit thread if thread2/handle_client is terminated
+                if terminate.is_set():  # exit thread if thread2/handle_client is terminated
                     break
         except Exception as e:
             logger.exception("Generic Error in thread2/handle_client: %s" % e)
@@ -835,9 +841,10 @@ if __name__ == '__main__':
             # logger.info('Socket closed')
             # logger.debug('thread2/handle_client closing')
         finally:
+            address_list.remove(address) # remove connection from list
             clientsocket.close()
             logger.info('Socket closed')
-            logger.info('thread2/handle_client closing')
+            logger.info('Exitting handle_client()')
 
 
     # thread1
@@ -960,8 +967,7 @@ if __name__ == '__main__':
     logger.info('Done mapping switches.')
 
     data_ready = threading.Event()
-    end_main = threading.Event()
-    end_main.set()
+    terminate = threading.Event()
 
     matrix = create_matrix()  # create empty 3-D matrix
     # matrix = get_discard(switch_dict, ssh_list, matrix)
@@ -969,31 +975,37 @@ if __name__ == '__main__':
 
     s = socket.socket(IPV4, TCP)  # create socket object
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # allows reuse of address and port
-    end_main = threading.Event()
-    end_main.set()
 
     ## client_connected = threading.Event()
 
     try:
-        thread1 = threading.Thread(target=get_discard, args=(switch_dict, ssh_list, matrix))
-        thread1.setDaemon(True)
+        # thread1 = threading.Thread(name='thread1', target=get_discard, args=(switch_dict, ssh_list, matrix, data_ready, terminate))
+        # thread1.setDaemon(True)
         #thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
         #thread1.start()
         print 'Server started...\nPress ctrl+c to exit'
         s.bind(('0.0.0.0', PORT))  # Binding to '0.0.0.0' or '' allows connections from any IP address:
         s.listen(5)  # queue of 5
+        # client_list = []
+        address_list =[]
         logger.info('Socket is listening for clients.')
         while True:
             clientsocket, address = s.accept()  # accept connection from client
+            # client_list.append(clientsocket)
+            # address_list.append(address)
             logger.info('New connection accepted from %s port %s', address, PORT)
-            thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s))
-            #thread1 = threading.Thread(target=updater, args=(switch_dict, ssh_list, matrix))
+            thread2 = threading.Thread(target=handle_client, args=(clientsocket, address, s, data_ready, terminate))
+            thread1 = threading.Thread(target=get_discard, args=(switch_dict, ssh_list, matrix, data_ready, terminate))
+            thread1.setDaemon(True)
             if thread2.is_alive() == False:
-                logger.info('thread2/handle_client starting...')
+                logger.info('Starting handle_client() thread')
                 thread2.start()
             if thread1.is_alive() == False:
-                logger.info('thread1/get_discards starting...')
+                logger.info('Starting get_discards() thread')
                 thread1.start()
+            # logger.info('Length of client list: %s', len(client_list))
+            # logger.info('Length of address list: %s', len(address_list))
+            # logger.info('Address: %s', address[0])
 
             # client_connected.set()
     except socket.error as e:
@@ -1006,7 +1018,7 @@ if __name__ == '__main__':
         #print "Generic error: %s" % e
         logger.exception("Generic Error: %s" % e)
     finally:
-        end_main.clear()
+        terminate.set()
         s.close()
         logger.info('Socket closed')
 
